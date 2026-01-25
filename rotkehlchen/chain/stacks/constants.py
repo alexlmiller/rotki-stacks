@@ -28,21 +28,45 @@ class StacksTokenMetadata(NamedTuple):
 # Curated metadata for well-known Stacks tokens
 # Key is the contract ID without ::asset-name suffix
 CURATED_STACKS_TOKENS: Final[dict[str, StacksTokenMetadata]] = {
-    # sBTC - Bitcoin-backed token on Stacks
+    # sBTC - Bitcoin-backed token on Stacks (mainnet)
+    'SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token': StacksTokenMetadata(
+        name='sBTC',
+        symbol='sBTC',
+        decimals=8,  # Same as BTC
+        coingecko='sbtc-2',
+        protocol='sbtc',
+    ),
+    # sBTC (legacy/testnet contract)
     'SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.sbtc-token': StacksTokenMetadata(
         name='sBTC',
         symbol='sBTC',
         decimals=8,  # Same as BTC
-        coingecko='sbtc',
+        coingecko='sbtc-2',
         protocol='sbtc',
     ),
-    # stSTX - StackingDAO liquid staking token
-    'SM3KNVZS30WM7F89SXKVVFY4SN9RMPZZ9FX929N0V.ststx-token': StacksTokenMetadata(
+    # stSTX - StackingDAO liquid staking token (mainnet)
+    'SP4SZE494VC2YC5JYG7AYFQ44F5Q4PYV7DVMDPBG.ststx-token': StacksTokenMetadata(
         name='Stacked STX',
         symbol='stSTX',
         decimals=6,  # Same as STX
-        coingecko='stacked-stx',
+        coingecko='stacking-dao',
         protocol='stackingdao',
+    ),
+    # aeUSDC - Allbridge bridged USDC
+    'SP3Y2ZSH8P7D50B0VBTSX11S7XSG24M1VB9YFQA4K.token-aeusdc': StacksTokenMetadata(
+        name='Allbridge USDC',
+        symbol='aeUSDC',
+        decimals=6,
+        coingecko='allbridge-bridged-usdc-stacks',
+        protocol='allbridge',
+    ),
+    # USDCx - Circle bridged USDC via xReserve
+    'SP120SBRBQJ00MCWS7TM5R8WJNTTKD5K0HFRC2CNE.usdcx': StacksTokenMetadata(
+        name='USDCx',
+        symbol='USDCx',
+        decimals=6,
+        coingecko='usdcx-stacks',
+        protocol='circle',
     ),
     # ALEX - ALEX Lab governance token
     'SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.token-alex': StacksTokenMetadata(
@@ -65,7 +89,7 @@ CURATED_STACKS_TOKENS: Final[dict[str, StacksTokenMetadata]] = {
         name='USDA',
         symbol='USDA',
         decimals=6,
-        coingecko='usda',
+        coingecko='arkadiko-usda',
         protocol='arkadiko',
     ),
     # xBTC - Wrapped Bitcoin on Stacks (legacy)
