@@ -3,7 +3,7 @@ import type { FilterSchema } from '@/composables/use-pagination-filter/types';
 import type { MatchedKeyword, SearchMatcher } from '@/types/filtering';
 import { z } from 'zod/v4';
 import { useSupportedChains } from '@/composables/info/chains';
-import { SOLANA_CHAIN } from '@/types/asset';
+import { SOLANA_CHAIN, STACKS_CHAIN } from '@/types/asset';
 import { arrayify } from '@/utils/array';
 
 enum AssetFilterKeys {
@@ -80,7 +80,7 @@ export function useAssetFilter(assetTypes: Ref<string[]>): FilterSchema<Filters,
         key: AssetFilterKeys.CHAIN,
         keyValue: AssetFilterValueKeys.CHAIN,
         string: true,
-        suggestions: (): string[] => [...get(allEvmChains).map(x => x.name), SOLANA_CHAIN],
+        suggestions: (): string[] => [...get(allEvmChains).map(x => x.name), SOLANA_CHAIN, STACKS_CHAIN],
         validate: (chain: string): boolean => !!chain,
       }] satisfies Matcher[]
       : []),
