@@ -12,6 +12,9 @@ from rotkehlchen.logging import RotkehlchenLogsAdapter
 from .constants import (
     CPT_POX,
     POX_CONTRACTS,
+    POX_DELEGATE_STACK_EXTEND,
+    POX_DELEGATE_STACK_INCREASE,
+    POX_DELEGATE_STACK_STX,
     POX_DELEGATE_STX,
     POX_LOCK_FUNCTIONS,
     POX_REVOKE_DELEGATE_STX,
@@ -41,12 +44,19 @@ def decode_pox_events(
 ) -> list[StacksEvent]:
     """Decode PoX stacking events from a transaction.
 
-    Handles:
+    Handles solo stacking:
     - stack-stx: Lock STX for stacking
     - stack-extend: Extend stacking period
     - stack-increase: Increase stacked amount
+
+    Handles delegation:
     - delegate-stx: Delegate to a pool
     - revoke-delegate-stx: Revoke delegation
+
+    Handles pool operations (pool stacking on behalf of delegators):
+    - delegate-stack-stx: Pool locks STX for delegator
+    - delegate-stack-extend: Pool extends stacking for delegator
+    - delegate-stack-increase: Pool increases stacked amount for delegator
 
     Note: BTC rewards go to the user's Bitcoin address and are tracked
     via Rotki's Bitcoin wallet integration, not here.
@@ -111,6 +121,59 @@ def decode_pox_events(
             else:
                 amount = micro_stx_to_stx(0)
                 notes = 'Delegate STX to stacking pool'
+            event_subtype = HistoryEventSubType.DEPOSIT_ASSET
+
+        elif function_name == POX_DELEGATE_STACK_STX:
+            # Pool operator stacking on behalf of delegator
+            amount_ustx = transaction.get_uint_arg('amount-ustx')
+            stacker = transaction.get_principal_arg('stacker')
+            lock_period = transaction.get_uint_arg('lock-period')
+            period_str = f' for {lock_period} cycles' if lock_period else ''
+            if amount_ustx:
+                amount = micro_stx_to_stx(amount_ustx)
+                if stacker:
+                    notes = f'Pool stacks {amount} STX for {stacker}{period_str}'
+                else:
+                    notes = f'Pool stacks {amount} STX{period_str}'
+            else:
+                amount = micro_stx_to_stx(0)
+                notes = f'Pool stacks STX{period_str}'
+            event_subtype = HistoryEventSubType.DEPOSIT_ASSET
+
+        elif function_name == POX_DELEGATE_STACK_EXTEND:
+            # Pool operator extending stacking on behalf of delegator
+            extend_count = transaction.get_uint_arg('extend-count')
+            stacker = transaction.get_principal_arg('stacker')
+            count_str = f' by {extend_count} cycles' if extend_count else ''
+            # Fetch the locked amount from transaction events (requires API call)
+            amount_ustx = base_tools.get_stx_lock_amount(transaction.tx_id)
+            if amount_ustx:
+                amount = micro_stx_to_stx(amount_ustx)
+                if stacker:
+                    notes = f'Pool extends stacking of {amount} STX for {stacker}{count_str}'
+                else:
+                    notes = f'Pool extends stacking of {amount} STX{count_str}'
+            else:
+                amount = micro_stx_to_stx(0)
+                if stacker:
+                    notes = f'Pool extends stacking for {stacker}{count_str}'
+                else:
+                    notes = f'Pool extends stacking{count_str}'
+            event_subtype = HistoryEventSubType.DEPOSIT_ASSET
+
+        elif function_name == POX_DELEGATE_STACK_INCREASE:
+            # Pool operator increasing stacked amount on behalf of delegator
+            amount_ustx = transaction.get_uint_arg('increase-by')
+            stacker = transaction.get_principal_arg('stacker')
+            if amount_ustx:
+                amount = micro_stx_to_stx(amount_ustx)
+                if stacker:
+                    notes = f'Pool increases stacked STX for {stacker} by {amount}'
+                else:
+                    notes = f'Pool increases stacked STX by {amount}'
+            else:
+                amount = micro_stx_to_stx(0)
+                notes = 'Pool increases stacked STX amount'
             event_subtype = HistoryEventSubType.DEPOSIT_ASSET
 
         else:

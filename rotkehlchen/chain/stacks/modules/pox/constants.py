@@ -10,19 +10,35 @@ POX4_CONTRACT: Final = StacksAddress(
     'SP000000000000000000002Q6VF78.pox-4',
 )
 
-# PoX Function Names
+# PoX Function Names - Solo stacking
 POX_STACK_STX: Final = 'stack-stx'
 POX_STACK_EXTEND: Final = 'stack-extend'
 POX_STACK_INCREASE: Final = 'stack-increase'
+
+# PoX Function Names - Delegation
 POX_DELEGATE_STX: Final = 'delegate-stx'
 POX_REVOKE_DELEGATE_STX: Final = 'revoke-delegate-stx'
 
-# All stacking functions
+# PoX Function Names - Pool operations (pools stacking on behalf of delegators)
+POX_DELEGATE_STACK_STX: Final = 'delegate-stack-stx'
+POX_DELEGATE_STACK_EXTEND: Final = 'delegate-stack-extend'
+POX_DELEGATE_STACK_INCREASE: Final = 'delegate-stack-increase'
+
+# All stacking functions that lock/extend STX
 POX_LOCK_FUNCTIONS: Final = frozenset({
     POX_STACK_STX,
     POX_STACK_EXTEND,
     POX_STACK_INCREASE,
     POX_DELEGATE_STX,
+    POX_DELEGATE_STACK_STX,
+    POX_DELEGATE_STACK_EXTEND,
+    POX_DELEGATE_STACK_INCREASE,
+})
+
+# Functions that need to fetch locked amount from events (no amount in args)
+POX_NEEDS_EVENT_AMOUNT: Final = frozenset({
+    POX_STACK_EXTEND,
+    POX_DELEGATE_STACK_EXTEND,
 })
 
 # All PoX contracts
