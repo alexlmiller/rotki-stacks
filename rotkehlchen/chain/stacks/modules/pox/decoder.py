@@ -79,8 +79,14 @@ def decode_pox_events(
         elif function_name == POX_STACK_EXTEND:
             extend_count = transaction.get_uint_arg('extend-count')
             count_str = f' by {extend_count} cycles' if extend_count else ''
-            amount = micro_stx_to_stx(0)  # extend doesn't have an amount
-            notes = f'Extend STX stacking period{count_str}'
+            # Fetch the locked amount from transaction events (requires API call)
+            amount_ustx = base_tools.get_stx_lock_amount(transaction.tx_id)
+            if amount_ustx:
+                amount = micro_stx_to_stx(amount_ustx)
+                notes = f'Extend stacking of {amount} STX{count_str}'
+            else:
+                amount = micro_stx_to_stx(0)
+                notes = f'Extend STX stacking period{count_str}'
             event_subtype = HistoryEventSubType.DEPOSIT_ASSET
 
         elif function_name == POX_STACK_INCREASE:
