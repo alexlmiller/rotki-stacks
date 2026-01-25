@@ -25,12 +25,18 @@ from rotkehlchen.history.events.structures.types import HistoryEventSubType, His
 from rotkehlchen.logging import RotkehlchenLogsAdapter
 from rotkehlchen.types import Location, StacksAddress, SupportedBlockchain
 
+from ..modules.alex.decoder import decode_alex_events, is_alex_transaction
+from ..modules.bitflow.decoder import decode_bitflow_events, is_bitflow_transaction
+from ..modules.hermetica.decoder import decode_hermetica_events, is_hermetica_transaction
 from ..modules.pox.decoder import decode_pox_events, is_pox_transaction
 from ..modules.sbtc.decoder import decode_sbtc_events, is_sbtc_transaction
+from ..modules.sendmany.decoder import decode_sendmany_events, is_sendmany_transaction
 from ..modules.stackingdao.decoder import (
     decode_stackingdao_events,
     is_stackingdao_transaction,
 )
+from ..modules.velar.decoder import decode_velar_events, is_velar_transaction
+from ..modules.zest.decoder import decode_zest_events, is_zest_transaction
 from .tools import StacksDecoderTools
 
 if TYPE_CHECKING:
@@ -341,6 +347,60 @@ class StacksTransactionDecoder(TransactionDecoder[StacksTransaction, StacksDecod
         # StackingDAO liquid staking operations
         elif is_stackingdao_transaction(transaction):
             additional = decode_stackingdao_events(
+                transaction=transaction,
+                base_tools=self.base,
+                existing_events=events,
+            )
+            events.extend(additional)
+
+        # Send-many batched transfers
+        elif is_sendmany_transaction(transaction):
+            additional = decode_sendmany_events(
+                transaction=transaction,
+                base_tools=self.base,
+                existing_events=events,
+            )
+            events.extend(additional)
+
+        # ALEX DEX operations
+        elif is_alex_transaction(transaction):
+            additional = decode_alex_events(
+                transaction=transaction,
+                base_tools=self.base,
+                existing_events=events,
+            )
+            events.extend(additional)
+
+        # Velar DEX operations
+        elif is_velar_transaction(transaction):
+            additional = decode_velar_events(
+                transaction=transaction,
+                base_tools=self.base,
+                existing_events=events,
+            )
+            events.extend(additional)
+
+        # Bitflow DEX operations
+        elif is_bitflow_transaction(transaction):
+            additional = decode_bitflow_events(
+                transaction=transaction,
+                base_tools=self.base,
+                existing_events=events,
+            )
+            events.extend(additional)
+
+        # Zest lending operations
+        elif is_zest_transaction(transaction):
+            additional = decode_zest_events(
+                transaction=transaction,
+                base_tools=self.base,
+                existing_events=events,
+            )
+            events.extend(additional)
+
+        # Hermetica synthetic assets operations
+        elif is_hermetica_transaction(transaction):
+            additional = decode_hermetica_events(
                 transaction=transaction,
                 base_tools=self.base,
                 existing_events=events,

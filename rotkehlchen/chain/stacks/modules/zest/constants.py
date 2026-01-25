@@ -1,0 +1,55 @@
+"""Zest lending protocol constants."""
+from typing import Final
+
+from rotkehlchen.types import StacksAddress
+
+CPT_ZEST: Final = 'zest'
+
+# Zest Core Contracts
+ZEST_POOL_CONTRACT: Final = StacksAddress(
+    'SP2VCQJGH7PHP2DJK7Z0V48AGBHQAW3R3ZW1QF4N.pool-v1-0',
+)
+ZEST_BORROW_CONTRACT: Final = StacksAddress(
+    'SP2VCQJGH7PHP2DJK7Z0V48AGBHQAW3R3ZW1QF4N.borrow-helper-v1-0',
+)
+ZEST_SUPPLY_CONTRACT: Final = StacksAddress(
+    'SP2VCQJGH7PHP2DJK7Z0V48AGBHQAW3R3ZW1QF4N.supply-helper-v1-0',
+)
+ZEST_LIQUIDATOR_CONTRACT: Final = StacksAddress(
+    'SP2VCQJGH7PHP2DJK7Z0V48AGBHQAW3R3ZW1QF4N.liquidator-v1-0',
+)
+
+# Function names for supply/borrow
+ZEST_SUPPLY: Final = 'supply'
+ZEST_WITHDRAW: Final = 'withdraw'
+ZEST_BORROW: Final = 'borrow'
+ZEST_REPAY: Final = 'repay'
+ZEST_LIQUIDATE: Final = 'liquidate'
+
+# Supply-related function names
+ZEST_SUPPLY_FUNCTIONS: Final = frozenset({
+    ZEST_SUPPLY,
+})
+
+# Withdrawal-related function names
+ZEST_WITHDRAW_FUNCTIONS: Final = frozenset({
+    ZEST_WITHDRAW,
+})
+
+# Borrow-related function names
+ZEST_BORROW_FUNCTIONS: Final = frozenset({
+    ZEST_BORROW,
+})
+
+# Repay-related function names
+ZEST_REPAY_FUNCTIONS: Final = frozenset({
+    ZEST_REPAY,
+})
+
+# All Zest contracts
+ZEST_CONTRACTS: Final = frozenset({
+    ZEST_POOL_CONTRACT,
+    ZEST_BORROW_CONTRACT,
+    ZEST_SUPPLY_CONTRACT,
+    ZEST_LIQUIDATOR_CONTRACT,
+})

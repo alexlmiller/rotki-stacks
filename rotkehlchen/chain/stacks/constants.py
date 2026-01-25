@@ -52,6 +52,38 @@ CURATED_STACKS_TOKENS: Final[dict[str, StacksTokenMetadata]] = {
         coingecko='stacking-dao',
         protocol='stackingdao',
     ),
+    # stSTXBTC - StackingDAO liquid staking token with BTC yield
+    'SP4SZE494VC2YC5JYG7AYFQ44F5Q4PYV7DVMDPBG.ststxbtc-token-v2': StacksTokenMetadata(
+        name='Stacked STX BTC',
+        symbol='stSTXBTC',
+        decimals=6,  # Same as STX
+        coingecko='stacking-dao-stacked-stacks-btc',
+        protocol='stackingdao',
+    ),
+    # zstSTX - Zest Protocol stSTX supply token
+    'SP2VCQJGH7PHP2DJK7Z0V48AGBHQAW3R3ZW1QF4N.zststx-token': StacksTokenMetadata(
+        name='Zest stSTX',
+        symbol='zstSTX',
+        decimals=6,
+        coingecko=None,
+        protocol='zest',
+    ),
+    # zstSTXBTC - Zest Protocol stSTXBTC supply token
+    'SP2VCQJGH7PHP2DJK7Z0V48AGBHQAW3R3ZW1QF4N.zststxbtc-v2-token': StacksTokenMetadata(
+        name='Zest stSTXBTC',
+        symbol='zstSTXBTC',
+        decimals=6,
+        coingecko=None,
+        protocol='zest',
+    ),
+    # zsBTC - Zest Protocol sBTC supply token
+    'SP2VCQJGH7PHP2DJK7Z0V48AGBHQAW3R3ZW1QF4N.zsbtc-token': StacksTokenMetadata(
+        name='Zest sBTC',
+        symbol='zsBTC',
+        decimals=8,  # Same as sBTC
+        coingecko=None,
+        protocol='zest',
+    ),
     # aeUSDC - Allbridge bridged USDC
     'SP3Y2ZSH8P7D50B0VBTSX11S7XSG24M1VB9YFQA4K.token-aeusdc': StacksTokenMetadata(
         name='Allbridge USDC',

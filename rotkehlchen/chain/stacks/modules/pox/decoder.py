@@ -61,27 +61,54 @@ def decode_pox_events(
 
     # For stacking operations, we create a STAKING deposit event
     if function_name in POX_LOCK_FUNCTIONS:
-        # The amount is in the transaction's amount field for stack-stx
-        if transaction.amount is not None and transaction.amount > 0:
-            amount = micro_stx_to_stx(transaction.amount)
-        else:
-            # For extend/increase, we may not have the amount directly
-            # Try to infer from existing events or use 0
-            amount = micro_stx_to_stx(0)
+        # Extract amount from function arguments
+        amount_ustx: int | None = None
 
         if function_name == POX_STACK_STX:
-            notes = f'Lock {amount} STX for stacking'
+            amount_ustx = transaction.get_uint_arg('amount-ustx')
+            lock_period = transaction.get_uint_arg('lock-period')
+            period_str = f' for {lock_period} cycles' if lock_period else ''
+            if amount_ustx:
+                amount = micro_stx_to_stx(amount_ustx)
+                notes = f'Lock {amount} STX for stacking{period_str}'
+            else:
+                amount = micro_stx_to_stx(0)
+                notes = f'Lock STX for stacking{period_str}'
             event_subtype = HistoryEventSubType.DEPOSIT_ASSET
+
         elif function_name == POX_STACK_EXTEND:
-            notes = 'Extend STX stacking period'
+            extend_count = transaction.get_uint_arg('extend-count')
+            count_str = f' by {extend_count} cycles' if extend_count else ''
+            amount = micro_stx_to_stx(0)  # extend doesn't have an amount
+            notes = f'Extend STX stacking period{count_str}'
             event_subtype = HistoryEventSubType.DEPOSIT_ASSET
+
         elif function_name == POX_STACK_INCREASE:
-            notes = f'Increase stacked STX by {amount}'
+            amount_ustx = transaction.get_uint_arg('increase-by')
+            if amount_ustx:
+                amount = micro_stx_to_stx(amount_ustx)
+                notes = f'Increase stacked STX by {amount}'
+            else:
+                amount = micro_stx_to_stx(0)
+                notes = 'Increase stacked STX amount'
             event_subtype = HistoryEventSubType.DEPOSIT_ASSET
+
         elif function_name == POX_DELEGATE_STX:
-            notes = f'Delegate {amount} STX to stacking pool'
+            amount_ustx = transaction.get_uint_arg('amount-ustx')
+            delegate_to = transaction.get_principal_arg('delegate-to')
+            if amount_ustx:
+                amount = micro_stx_to_stx(amount_ustx)
+                if delegate_to:
+                    notes = f'Delegate {amount} STX to {delegate_to}'
+                else:
+                    notes = f'Delegate {amount} STX to stacking pool'
+            else:
+                amount = micro_stx_to_stx(0)
+                notes = 'Delegate STX to stacking pool'
             event_subtype = HistoryEventSubType.DEPOSIT_ASSET
+
         else:
+            amount = micro_stx_to_stx(0)
             notes = f'Stacking operation: {function_name}'
             event_subtype = HistoryEventSubType.DEPOSIT_ASSET
 

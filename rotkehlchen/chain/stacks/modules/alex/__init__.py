@@ -1,0 +1,1 @@
+"""ALEX DEX decoder module."""

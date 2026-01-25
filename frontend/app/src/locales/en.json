@@ -5463,6 +5463,12 @@
             "valid": "The tx hash is invalid, fill it with valid tx hash"
           }
         },
+        "tx_id": {
+          "validation": {
+            "non_empty": "The transaction ID field cannot be empty.",
+            "valid": "The transaction ID is invalid, fill it with a valid Stacks transaction ID"
+          }
+        },
         "unique_id": {
           "label": "Unique Id"
         },

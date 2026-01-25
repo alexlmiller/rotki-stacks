@@ -8,6 +8,7 @@ from rotkehlchen.api.websockets.typedefs import (
     WSMessageType,
 )
 from rotkehlchen.chain.stacks.types import (
+    FunctionArg,
     StacksTransaction,
     StacksTxStatus,
     StacksTxType,
@@ -116,6 +117,7 @@ class StacksTransactions:
             amount = None
             contract_id = None
             function_name = None
+            function_args: tuple[FunctionArg, ...] | None = None
 
             if tx_type == StacksTxType.TOKEN_TRANSFER:
                 token_transfer = tx_data.get('token_transfer', {})
@@ -126,6 +128,19 @@ class StacksTransactions:
                 contract_call = tx_data.get('contract_call', {})
                 contract_id = contract_call.get('contract_id')
                 function_name = contract_call.get('function_name')
+
+                # Extract function arguments
+                raw_args = contract_call.get('function_args', [])
+                if raw_args:
+                    function_args = tuple(
+                        FunctionArg(
+                            name=arg.get('name', ''),
+                            type=arg.get('type', ''),
+                            repr=arg.get('repr', ''),
+                            hex=arg.get('hex', ''),
+                        )
+                        for arg in raw_args
+                    )
 
             return StacksTransaction(
                 tx_id=tx_id,
@@ -140,6 +155,7 @@ class StacksTransactions:
                 amount=amount,
                 contract_id=contract_id,
                 function_name=function_name,
+                function_args=function_args,
             )
         except (KeyError, ValueError, TypeError) as e:
             log.error(f'Failed to parse Stacks transaction: {e}')

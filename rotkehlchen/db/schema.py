@@ -116,6 +116,8 @@ INSERT OR IGNORE INTO location(location, seq) VALUES ('v', 54);
 INSERT OR IGNORE INTO location(location, seq) VALUES ('w', 55);
 /* Avalanche */
 INSERT OR IGNORE INTO location(location, seq) VALUES ('x', 56);
+/* Stacks */
+INSERT OR IGNORE INTO location(location, seq) VALUES ('y', 57);
 """
 
 # Custom enum table for Balance categories (asset/liability)
@@ -846,8 +848,23 @@ CREATE TABLE IF NOT EXISTS stacks_transactions (
     recipient_address TEXT,
     amount TEXT,
     contract_id TEXT,
-    function_name TEXT
+    function_name TEXT,
+    function_args TEXT,
+    arg_amount_ustx INTEGER,
+    arg_recipient TEXT,
+    arg_delegate_to TEXT
 );
+"""
+
+DB_CREATE_STACKS_TRANSACTIONS_INDEXES = """
+CREATE INDEX IF NOT EXISTS idx_stacks_tx_contract_function
+    ON stacks_transactions(contract_id, function_name);
+CREATE INDEX IF NOT EXISTS idx_stacks_tx_arg_amount
+    ON stacks_transactions(arg_amount_ustx) WHERE arg_amount_ustx IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_stacks_tx_arg_recipient
+    ON stacks_transactions(arg_recipient) WHERE arg_recipient IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_stacks_tx_arg_delegate
+    ON stacks_transactions(arg_delegate_to) WHERE arg_delegate_to IS NOT NULL;
 """
 
 DB_CREATE_STACKS_ADDRESS_MAPPINGS = """

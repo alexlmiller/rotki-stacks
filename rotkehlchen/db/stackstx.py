@@ -1,7 +1,10 @@
 """Database handler for Stacks transactions."""
+import json
+import logging
 from typing import TYPE_CHECKING
 
 from rotkehlchen.chain.stacks.types import (
+    FunctionArg,
     StacksTransaction,
     StacksTxStatus,
     StacksTxType,
@@ -17,9 +20,77 @@ from rotkehlchen.types import Location, StacksAddress, Timestamp
 if TYPE_CHECKING:
     from rotkehlchen.db.drivers.gevent import DBCursor
 
+log = logging.getLogger(__name__)
+
 
 class DBStacksTx(DBCommonTx[StacksAddress, StacksTransaction, str, StacksTransactionsFilterQuery, StacksTransactionsNotDecodedFilterQuery]):  # noqa: E501
     """Database handler for Stacks transactions."""
+
+    @staticmethod
+    def _extract_indexed_args(tx: StacksTransaction) -> dict[str, int | str | None]:
+        """Extract commonly-queried argument values for indexing.
+
+        Returns a dict with keys: arg_amount_ustx, arg_recipient, arg_delegate_to
+        """
+        indexed: dict[str, int | str | None] = {
+            'arg_amount_ustx': None,
+            'arg_recipient': None,
+            'arg_delegate_to': None,
+        }
+
+        # Extract amount from various arg names
+        if (amount := tx.get_uint_arg('amount-ustx')) is not None:
+            indexed['arg_amount_ustx'] = amount
+        elif (amount := tx.get_uint_arg('increase-by')) is not None:
+            indexed['arg_amount_ustx'] = amount
+        elif (amount := tx.get_uint_arg('ustx')) is not None:
+            indexed['arg_amount_ustx'] = amount
+        elif tx.get_arg('amount-ustx') is not None:
+            log.warning(f'Failed to parse amount-ustx argument in tx {tx.tx_id}')
+        elif tx.get_arg('increase-by') is not None:
+            log.warning(f'Failed to parse increase-by argument in tx {tx.tx_id}')
+
+        # Extract recipient
+        if (recipient := tx.get_principal_arg('recipient')) is not None:
+            indexed['arg_recipient'] = recipient
+        elif (recipient := tx.get_principal_arg('to')) is not None:
+            indexed['arg_recipient'] = recipient
+        elif tx.get_arg('recipient') is not None:
+            log.warning(f'Failed to parse recipient argument in tx {tx.tx_id}')
+
+        # Extract delegate-to for stacking delegation
+        if (delegate := tx.get_principal_arg('delegate-to')) is not None:
+            indexed['arg_delegate_to'] = delegate
+        elif tx.get_arg('delegate-to') is not None:
+            log.warning(f'Failed to parse delegate-to argument in tx {tx.tx_id}')
+
+        return indexed
+
+    @staticmethod
+    def _serialize_function_args(function_args: tuple[FunctionArg, ...] | None) -> str | None:
+        """Serialize function_args to JSON for database storage."""
+        if function_args is None:
+            return None
+        return json.dumps(list(function_args))
+
+    @staticmethod
+    def _deserialize_function_args(json_str: str | None) -> tuple[FunctionArg, ...] | None:
+        """Deserialize function_args from JSON database storage."""
+        if json_str is None:
+            return None
+        try:
+            args_list = json.loads(json_str)
+            return tuple(
+                FunctionArg(
+                    name=arg.get('name', ''),
+                    type=arg.get('type', ''),
+                    repr=arg.get('repr', ''),
+                    hex=arg.get('hex', ''),
+                )
+                for arg in args_list
+            )
+        except (json.JSONDecodeError, TypeError, KeyError):
+            return None
 
     def add_transactions(
             self,
@@ -32,10 +103,14 @@ class DBStacksTx(DBCommonTx[StacksAddress, StacksTransaction, str, StacksTransac
             INSERT OR IGNORE INTO stacks_transactions(
                 tx_id, block_height, block_time, tx_type, sender_address,
                 fee_rate, nonce, tx_status, recipient_address, amount,
-                contract_id, function_name
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                contract_id, function_name, function_args,
+                arg_amount_ustx, arg_recipient, arg_delegate_to
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
         for tx in stacks_transactions:
+            # Extract indexed argument values
+            indexed = self._extract_indexed_args(tx)
+
             if (tx_id := self.db.write_single_tuple(
                 write_cursor=write_cursor,
                 tuple_type='stacks_transaction',
@@ -53,6 +128,10 @@ class DBStacksTx(DBCommonTx[StacksAddress, StacksTransaction, str, StacksTransac
                     str(tx.amount) if tx.amount is not None else None,
                     tx.contract_id,
                     tx.function_name,
+                    self._serialize_function_args(tx.function_args),
+                    indexed['arg_amount_ustx'],
+                    indexed['arg_recipient'],
+                    indexed['arg_delegate_to'],
                 ),
                 relevant_address=relevant_address,
             )) is None:
@@ -71,8 +150,8 @@ class DBStacksTx(DBCommonTx[StacksAddress, StacksTransaction, str, StacksTransac
                     (tx_id, tx.recipient_address),
                 )
 
-    @staticmethod
     def get_transactions(
+            self,
             cursor: 'DBCursor',
             filter_: StacksTransactionsFilterQuery,
     ) -> list[StacksTransaction]:
@@ -92,12 +171,13 @@ class DBStacksTx(DBCommonTx[StacksAddress, StacksTransaction, str, StacksTransac
                 amount=int(row[10]) if row[10] else None,
                 contract_id=row[11],
                 function_name=row[12],
+                function_args=self._deserialize_function_args(row[13]),
                 db_id=row[0],
             )
             for row in cursor.execute(
                 f'SELECT identifier, tx_id, block_height, block_time, tx_type, '
                 f'sender_address, fee_rate, nonce, tx_status, recipient_address, '
-                f'amount, contract_id, function_name '
+                f'amount, contract_id, function_name, function_args '
                 f'FROM stacks_transactions {query}',
                 bindings,
             )
