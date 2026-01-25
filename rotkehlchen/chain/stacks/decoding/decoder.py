@@ -25,6 +25,12 @@ from rotkehlchen.history.events.structures.types import HistoryEventSubType, His
 from rotkehlchen.logging import RotkehlchenLogsAdapter
 from rotkehlchen.types import Location, StacksAddress, SupportedBlockchain
 
+from ..modules.pox.decoder import decode_pox_events, is_pox_transaction
+from ..modules.sbtc.decoder import decode_sbtc_events, is_sbtc_transaction
+from ..modules.stackingdao.decoder import (
+    decode_stackingdao_events,
+    is_stackingdao_transaction,
+)
 from .tools import StacksDecoderTools
 
 if TYPE_CHECKING:
@@ -304,6 +310,43 @@ class StacksTransactionDecoder(TransactionDecoder[StacksTransaction, StacksDecod
 
         return []
 
+    def _apply_protocol_decoders(
+            self,
+            transaction: StacksTransaction,
+            events: list[StacksEvent],
+    ) -> None:
+        """Apply protocol-specific decoders to enhance events.
+
+        Checks if the transaction involves known protocols and applies
+        the appropriate decoder to enrich the event information.
+        """
+        # sBTC bridge operations
+        if is_sbtc_transaction(transaction):
+            additional = decode_sbtc_events(
+                transaction=transaction,
+                base_tools=self.base,
+                existing_events=events,
+            )
+            events.extend(additional)
+
+        # PoX stacking operations
+        elif is_pox_transaction(transaction):
+            additional = decode_pox_events(
+                transaction=transaction,
+                base_tools=self.base,
+                existing_events=events,
+            )
+            events.extend(additional)
+
+        # StackingDAO liquid staking operations
+        elif is_stackingdao_transaction(transaction):
+            additional = decode_stackingdao_events(
+                transaction=transaction,
+                base_tools=self.base,
+                existing_events=events,
+            )
+            events.extend(additional)
+
     def _decode_transaction(
             self,
             transaction: StacksTransaction,
@@ -336,6 +379,9 @@ class StacksTransactionDecoder(TransactionDecoder[StacksTransaction, StacksDecod
                     token_transfers=token_transfers,
                 )
                 events.extend(token_events)
+
+            # Apply protocol-specific decoders
+            self._apply_protocol_decoders(transaction, events)
 
         # Sort events by sequence index
         events = sorted(events, key=lambda x: x.sequence_index, reverse=False)
