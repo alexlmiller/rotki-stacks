@@ -181,7 +181,7 @@ SolanaAddress = NewType('SolanaAddress', T_SolanaAddress)
 T_StacksAddress = str
 StacksAddress = NewType('StacksAddress', T_StacksAddress)
 
-BlockchainAddress = BTCAddress | ChecksumEvmAddress | SubstrateAddress | SolanaAddress | StacksAddress
+BlockchainAddress = BTCAddress | ChecksumEvmAddress | SubstrateAddress | SolanaAddress | StacksAddress  # noqa: E501
 AnyBlockchainAddress = TypeVar(
     'AnyBlockchainAddress',
     BTCAddress,
@@ -1313,6 +1313,14 @@ class TokenKind(DBCharEnumMixIn):
             raise DeserializationError(f'Expected solana token kind, got {result}')
 
         return result  # type: ignore[return-value]  # the check above ensures it's solana token kind.
+
+    @classmethod
+    def deserialize_stacks_from_db(cls, value: Any) -> 'STACKS_TOKEN_KINDS_TYPE':
+        """Deserialize specifically for Stacks token kinds"""
+        if (result := cls.deserialize_from_db(value)) not in (TokenKind.SIP10_FUNGIBLE, TokenKind.SIP10_NFT):  # noqa: E501
+            raise DeserializationError(f'Expected Stacks token kind, got {result}')
+
+        return result  # type: ignore[return-value]  # the check above ensures it's stacks token kind.
 
 
 EVM_TOKEN_KINDS_TYPE = Literal[TokenKind.ERC20, TokenKind.ERC721]

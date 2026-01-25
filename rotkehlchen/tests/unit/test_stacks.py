@@ -478,3 +478,222 @@ class TestStacksBlockchainAccountsIntegration:
 
         accounts.remove(SupportedBlockchain.STACKS, test_address)
         assert accounts.stx == ()
+
+
+class TestStacksCuratedTokenMetadata:
+    """Tests for curated Stacks token metadata - Phase 3."""
+
+    def test_curated_tokens_loaded(self) -> None:
+        """Test that curated token metadata is loaded."""
+        from rotkehlchen.chain.stacks.constants import CURATED_STACKS_TOKENS
+
+        assert len(CURATED_STACKS_TOKENS) > 0
+        # Check that sBTC is in the curated tokens
+        assert 'SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.sbtc-token' in CURATED_STACKS_TOKENS
+
+    def test_get_curated_token_metadata_sbtc(self) -> None:
+        """Test getting metadata for sBTC token."""
+        from rotkehlchen.chain.stacks.constants import get_curated_token_metadata
+
+        metadata = get_curated_token_metadata(
+            'SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.sbtc-token',
+        )
+        assert metadata is not None
+        assert metadata.name == 'sBTC'
+        assert metadata.symbol == 'sBTC'
+        assert metadata.decimals == 8
+        assert metadata.coingecko == 'sbtc'
+        assert metadata.protocol == 'sbtc'
+
+    def test_get_curated_token_metadata_ststx(self) -> None:
+        """Test getting metadata for stSTX token."""
+        from rotkehlchen.chain.stacks.constants import get_curated_token_metadata
+
+        metadata = get_curated_token_metadata(
+            'SM3KNVZS30WM7F89SXKVVFY4SN9RMPZZ9FX929N0V.ststx-token',
+        )
+        assert metadata is not None
+        assert metadata.name == 'Stacked STX'
+        assert metadata.symbol == 'stSTX'
+        assert metadata.decimals == 6
+        assert metadata.protocol == 'stackingdao'
+
+    def test_get_curated_token_metadata_unknown(self) -> None:
+        """Test getting metadata for an unknown token returns None."""
+        from rotkehlchen.chain.stacks.constants import get_curated_token_metadata
+
+        metadata = get_curated_token_metadata('SP_UNKNOWN.unknown-token')
+        assert metadata is None
+
+    def test_stacks_token_metadata_namedtuple(self) -> None:
+        """Test StacksTokenMetadata is a proper NamedTuple."""
+        from rotkehlchen.chain.stacks.constants import StacksTokenMetadata
+
+        metadata = StacksTokenMetadata(
+            name='Test Token',
+            symbol='TEST',
+            decimals=6,
+            coingecko='test-coin',
+        )
+        assert metadata.name == 'Test Token'
+        assert metadata.symbol == 'TEST'
+        assert metadata.decimals == 6
+        assert metadata.coingecko == 'test-coin'
+        assert metadata.cryptocompare is None  # default
+        assert metadata.protocol is None  # default
+
+
+class TestStacksTokenBalanceParsing:
+    """Tests for SIP-10 token balance parsing in manager - Phase 3."""
+
+    def test_manager_parses_fungible_tokens(self) -> None:
+        """Test manager parses fungible token balances from API response."""
+        from unittest.mock import MagicMock, patch
+
+        from rotkehlchen.chain.stacks.manager import StacksManager
+        from rotkehlchen.chain.stacks.node_inquirer import StacksInquirer
+        from rotkehlchen.constants import DEFAULT_BALANCE_LABEL
+        from rotkehlchen.constants.assets import A_STX
+        from rotkehlchen.fval import FVal
+
+        mock_gm = MagicMock()
+        mock_db = MagicMock()
+        inquirer = StacksInquirer(greenlet_manager=mock_gm, database=mock_db)
+        manager = StacksManager(node_inquirer=inquirer)
+
+        # Mock response with STX and a fungible token (sBTC)
+        mock_response = {
+            'stx': {'balance': '1000000'},  # 1 STX
+            'fungible_tokens': {
+                'SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.sbtc-token::sbtc': {
+                    'balance': '100000000',  # 1 sBTC (8 decimals)
+                },
+            },
+        }
+
+        test_address = StacksAddress('SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7')
+
+        # Create a mock token to return from get_or_create_stacks_token
+        mock_token = MagicMock()
+        mock_token.decimals = 8
+
+        with (
+            patch.object(inquirer, 'get_balances', return_value=mock_response),
+            patch(
+                'rotkehlchen.inquirer.Inquirer.find_main_currency_price',
+                return_value=FVal(1),
+            ),
+            patch(
+                'rotkehlchen.inquirer.Inquirer.find_main_currency_prices',
+                return_value={mock_token: FVal(50000)},
+            ),
+            patch(
+                'rotkehlchen.chain.stacks.manager.get_or_create_stacks_token',
+                return_value=mock_token,
+            ),
+        ):
+            balances = manager.query_balances([test_address])
+
+            # Should have STX balance
+            assert test_address in balances
+            assert A_STX in balances[test_address].assets
+            stx_balance = balances[test_address].assets[A_STX][DEFAULT_BALANCE_LABEL]
+            assert stx_balance.amount == FVal(1)
+
+            # Should have token balance
+            assert mock_token in balances[test_address].assets
+            token_balance = balances[test_address].assets[mock_token][DEFAULT_BALANCE_LABEL]
+            assert token_balance.amount == FVal(1)  # 100000000 / 10^8 = 1
+            assert token_balance.value == FVal(50000)  # 1 * 50000
+
+    def test_manager_skips_zero_balance_tokens(self) -> None:
+        """Test manager skips tokens with zero balance."""
+        from unittest.mock import MagicMock, patch
+
+        from rotkehlchen.chain.stacks.manager import StacksManager
+        from rotkehlchen.chain.stacks.node_inquirer import StacksInquirer
+        from rotkehlchen.fval import FVal
+
+        mock_gm = MagicMock()
+        mock_db = MagicMock()
+        inquirer = StacksInquirer(greenlet_manager=mock_gm, database=mock_db)
+        manager = StacksManager(node_inquirer=inquirer)
+
+        # Mock response with zero balance token
+        mock_response = {
+            'stx': {'balance': '0'},
+            'fungible_tokens': {
+                'SP_SOME_TOKEN.token::token': {
+                    'balance': '0',
+                },
+            },
+        }
+
+        test_address = StacksAddress('SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7')
+
+        with (
+            patch.object(inquirer, 'get_balances', return_value=mock_response),
+            patch(
+                'rotkehlchen.inquirer.Inquirer.find_main_currency_price',
+                return_value=FVal(1),
+            ),
+        ):
+            balances = manager.query_balances([test_address])
+
+            # Should have empty balance sheet (no non-zero balances)
+            # The defaultdict will create an entry but it should be empty
+            assert test_address not in balances or len(balances[test_address].assets) == 0
+
+    def test_manager_strips_asset_name_suffix(self) -> None:
+        """Test manager correctly strips ::asset-name suffix from contract ID."""
+        from unittest.mock import MagicMock, patch
+
+        from rotkehlchen.chain.stacks.manager import StacksManager
+        from rotkehlchen.chain.stacks.node_inquirer import StacksInquirer
+        from rotkehlchen.fval import FVal
+
+        mock_gm = MagicMock()
+        mock_db = MagicMock()
+        inquirer = StacksInquirer(greenlet_manager=mock_gm, database=mock_db)
+        manager = StacksManager(node_inquirer=inquirer)
+
+        # Track what contract_id was passed to get_or_create_stacks_token
+        captured_contract_id = None
+
+        def capture_contract_id(userdb, contract_id, **kwargs):
+            nonlocal captured_contract_id
+            captured_contract_id = contract_id
+            mock_token = MagicMock()
+            mock_token.decimals = 6
+            return mock_token
+
+        mock_response = {
+            'stx': {'balance': '0'},
+            'fungible_tokens': {
+                'SP_CONTRACT.token-name::asset-name': {
+                    'balance': '1000000',
+                },
+            },
+        }
+
+        test_address = StacksAddress('SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7')
+
+        with (
+            patch.object(inquirer, 'get_balances', return_value=mock_response),
+            patch(
+                'rotkehlchen.inquirer.Inquirer.find_main_currency_price',
+                return_value=FVal(1),
+            ),
+            patch(
+                'rotkehlchen.inquirer.Inquirer.find_main_currency_prices',
+                return_value={},
+            ),
+            patch(
+                'rotkehlchen.chain.stacks.manager.get_or_create_stacks_token',
+                side_effect=capture_contract_id,
+            ),
+        ):
+            manager.query_balances([test_address])
+
+            # Contract ID should have ::asset-name stripped
+            assert captured_contract_id == 'SP_CONTRACT.token-name'

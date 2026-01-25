@@ -13,6 +13,7 @@ from rotkehlchen.assets.asset import (
     CryptoAsset,
     EvmToken,
     SolanaToken,
+    StacksToken,
     UnderlyingToken,
     WrongAssetType,
 )
@@ -20,6 +21,7 @@ from rotkehlchen.assets.resolver import AssetResolver
 from rotkehlchen.assets.types import AssetType
 from rotkehlchen.chain.evm.constants import DEFAULT_TOKEN_DECIMALS
 from rotkehlchen.chain.solana.utils import is_solana_token_nft
+from rotkehlchen.chain.stacks.constants import get_curated_token_metadata
 from rotkehlchen.constants.assets import (
     A_BSC_BNB,
     A_ETH,
@@ -33,7 +35,11 @@ from rotkehlchen.constants.assets import (
     A_WXDAI,
     A_XDAI,
 )
-from rotkehlchen.constants.resolver import evm_address_to_identifier, solana_address_to_identifier
+from rotkehlchen.constants.resolver import (
+    evm_address_to_identifier,
+    solana_address_to_identifier,
+    stacks_contract_to_identifier,
+)
 from rotkehlchen.errors.asset import UnknownAsset, UnsupportedAsset
 from rotkehlchen.errors.misc import NotERC20Conformant, NotERC721Conformant, NotSPLConformant
 from rotkehlchen.errors.serialization import DeserializationError
@@ -45,10 +51,12 @@ from rotkehlchen.types import (
     EVM_TOKEN_KINDS_TYPE,
     SOLANA_TOKEN_KINDS_TYPE,
     SPAM_PROTOCOL,
+    STACKS_TOKEN_KINDS_TYPE,
     ChainID,
     ChecksumEvmAddress,
     EVMTxHash,
     SolanaAddress,
+    StacksAddress,
     SupportedBlockchain,
     Timestamp,
     TokenKind,
@@ -412,6 +420,78 @@ def get_or_create_solana_token(
     )
 
 
+def get_or_create_stacks_token(
+        userdb: 'DBHandler',
+        contract_id: StacksAddress,
+        token_kind: STACKS_TOKEN_KINDS_TYPE = TokenKind.SIP10_FUNGIBLE,
+        symbol: str | None = None,
+        name: str | None = None,
+        decimals: int | None = None,
+        protocol: str | None = None,
+        coingecko: str | None = None,
+        cryptocompare: str | None = None,
+) -> StacksToken:
+    """Given a Stacks contract ID return the StacksToken.
+
+    If the token exists in the GlobalDB it's returned. If not it's created and added.
+
+    Args:
+        userdb: The database handler
+        contract_id: The Stacks contract ID (e.g., SP3K8BC0...sbtc-token)
+        token_kind: The token kind (SIP10_FUNGIBLE or SIP10_NFT)
+        symbol: Optional token symbol
+        name: Optional token name
+        decimals: Optional decimal places
+        protocol: Optional protocol name
+        coingecko: Optional CoinGecko ID
+        cryptocompare: Optional CryptoCompare ID
+
+    Returns:
+        StacksToken instance
+
+    Note: The contract_id should NOT include the ::asset-name suffix.
+    Strip it before calling: contract_id.split('::')[0]
+    """
+    identifier = stacks_contract_to_identifier(
+        contract_id=contract_id,
+        token_type=token_kind,
+    )
+
+    # Try to load existing token
+    try:
+        return StacksToken(identifier)
+    except UnknownAsset:
+        pass  # Token doesn't exist, create it
+
+    # Check for curated metadata for well-known tokens
+    curated = get_curated_token_metadata(contract_id)
+
+    # Determine final values from provided, curated, or fallback sources
+    final_name = name or (curated.name if curated else f'Unknown Stacks Token ({contract_id[:20]}...)')  # noqa: E501
+    final_symbol = symbol or (curated.symbol if curated else 'UNKNOWN')
+    final_decimals = decimals if decimals is not None else (curated.decimals if curated else None)
+    final_protocol = protocol or (curated.protocol if curated else None)
+    final_coingecko = coingecko or (curated.coingecko if curated else None)
+    final_cryptocompare = cryptocompare or (curated.cryptocompare if curated else None)
+
+    # Create new token with resolved values
+    token = StacksToken.initialize(
+        contract_id=contract_id,
+        token_kind=token_kind,
+        name=final_name,
+        symbol=final_symbol,
+        decimals=final_decimals,
+        protocol=final_protocol,
+        coingecko=final_coingecko,
+        cryptocompare=final_cryptocompare,
+    )
+
+    # Add to global DB
+    GlobalDBHandler.add_asset(token)
+
+    return token
+
+
 @overload
 def _get_or_create_token(
         userdb: 'DBHandler',
@@ -710,7 +790,7 @@ def token_raw_value_decimals(token_amount: FVal, token_decimals: int | None) -> 
 
 def token_normalized_value(
         token_amount: int,
-        token: EvmToken | SolanaToken,
+        token: EvmToken | SolanaToken | StacksToken,
 ) -> FVal:
     return token_normalized_value_decimals(token_amount, token.decimals)
 

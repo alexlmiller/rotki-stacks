@@ -15,6 +15,7 @@ from rotkehlchen.constants.resolver import (
     ChainID,
     evm_address_to_identifier,
     solana_address_to_identifier,
+    stacks_contract_to_identifier,
     tokenid_to_collectible_id,
 )
 from rotkehlchen.errors.asset import UnknownAsset, UnsupportedAsset, WrongAssetType
@@ -24,8 +25,10 @@ from rotkehlchen.logging import RotkehlchenLogsAdapter
 from rotkehlchen.types import (
     EVM_TOKEN_KINDS_TYPE,
     SOLANA_TOKEN_KINDS_TYPE,
+    STACKS_TOKEN_KINDS_TYPE,
     ChecksumEvmAddress,
     SolanaAddress,
+    StacksAddress,
     Timestamp,
     TokenKind,
 )
@@ -793,6 +796,120 @@ class SolanaToken(CryptoAsset):
     def to_dict(self) -> dict[str, Any]:
         return super().to_dict() | {
             'address': self.mint_address,
+            'token_kind': self.token_kind.serialize(),
+            'decimals': self.decimals,
+            'protocol': self.protocol,
+        }
+
+
+StacksTokenDBTuple = tuple[
+    str,                  # identifier
+    str,                  # contract_id
+    str,                  # token type
+    int | None,        # decimals
+    str | None,        # name
+    str | None,        # symbol
+    int | None,        # started
+    str | None,        # swapped_for
+    str | None,        # coingecko
+    str | None,        # cryptocompare
+    str | None,        # protocol
+]
+
+
+@dataclass(init=True, repr=False, eq=False, order=False, unsafe_hash=False, frozen=True)
+class StacksToken(CryptoAsset):
+    """Represents a SIP-10 token on the Stacks blockchain.
+
+    SIP-10 is the fungible token standard for Stacks, similar to ERC-20 on Ethereum.
+    Contract IDs are in format: PRINCIPAL.contract-name
+    (e.g., SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.sbtc-token)
+    """
+    contract_id: StacksAddress = field(init=False)
+    token_kind: STACKS_TOKEN_KINDS_TYPE = field(init=False)
+    decimals: int | None = field(init=False)
+    protocol: str | None = field(init=False)
+
+    def __post_init__(self, direct_field_initialization: bool) -> None:
+        super().__post_init__(direct_field_initialization)
+        if direct_field_initialization is True:
+            return
+
+        resolved = AssetResolver().resolve_asset_to_class(
+            identifier=self.identifier,
+            expected_type=StacksToken,
+        )
+        self._set_attributes(
+            asset_type=AssetType.STACKS_TOKEN,
+            contract_id=resolved.contract_id,
+            token_kind=resolved.token_kind,
+            decimals=resolved.decimals,
+            protocol=resolved.protocol,
+        )
+
+    @classmethod
+    def initialize(  # type: ignore  # signature is incompatible with super type
+            cls: type['StacksToken'],
+            contract_id: StacksAddress,
+            token_kind: STACKS_TOKEN_KINDS_TYPE,
+            name: str | None = None,
+            symbol: str | None = None,
+            started: Timestamp | None = None,
+            forked: CryptoAsset | None = None,
+            swapped_for: CryptoAsset | None = None,
+            coingecko: str | None = None,
+            cryptocompare: str | None = '',
+            decimals: int | None = None,
+            protocol: str | None = None,
+    ) -> 'StacksToken':
+        identifier = stacks_contract_to_identifier(
+            contract_id=contract_id,
+            token_type=token_kind,
+        )
+        asset = StacksToken(identifier=identifier, direct_field_initialization=True)
+        asset._set_attributes(
+            asset_type=AssetType.STACKS_TOKEN,
+            name=name,
+            symbol=symbol,
+            cryptocompare=cryptocompare,
+            coingecko=coingecko,
+            started=started,
+            forked=forked,
+            swapped_for=swapped_for,
+            contract_id=contract_id,
+            token_kind=token_kind,
+            decimals=decimals,
+            protocol=protocol,
+        )
+        return asset
+
+    @classmethod
+    def deserialize_from_db(
+            cls: type['StacksToken'],
+            entry: StacksTokenDBTuple,
+    ) -> 'StacksToken':
+        """May raise:
+        - UnknownAsset if the swapped for asset can't be recognized
+
+        That error would be bad because it would mean somehow an unknown id made it into the DB
+        """
+        swapped_for = CryptoAsset(entry[7]) if entry[7] is not None else None
+        return StacksToken.initialize(
+            contract_id=StacksAddress(entry[1]),
+            token_kind=TokenKind.deserialize_stacks_from_db(entry[2]),
+            decimals=entry[3],
+            name=entry[4],
+            symbol=entry[5] if entry[5] is not None else '',
+            started=Timestamp(entry[6]),  # type: ignore
+            swapped_for=swapped_for,
+            coingecko=entry[8],
+            cryptocompare=entry[9],
+            protocol=entry[10],
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        return super().to_dict() | {
+            'contract_id': self.contract_id,
             'token_kind': self.token_kind.serialize(),
             'decimals': self.decimals,
             'protocol': self.protocol,

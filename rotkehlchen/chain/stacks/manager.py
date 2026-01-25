@@ -5,12 +5,16 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from rotkehlchen.accounting.structures.balance import Balance, BalanceSheet
+from rotkehlchen.assets.asset import Asset
+from rotkehlchen.assets.utils import get_or_create_stacks_token, token_normalized_value_decimals
 from rotkehlchen.chain.manager import ChainManagerWithTransactions
 from rotkehlchen.chain.stacks.constants import micro_stx_to_stx
 from rotkehlchen.chain.stacks.node_inquirer import StacksInquirer
 from rotkehlchen.constants import DEFAULT_BALANCE_LABEL
 from rotkehlchen.constants.assets import A_STX
+from rotkehlchen.constants.misc import ZERO
 from rotkehlchen.errors.misc import RemoteError
+from rotkehlchen.fval import FVal
 from rotkehlchen.inquirer import Inquirer
 from rotkehlchen.logging import RotkehlchenLogsAdapter
 from rotkehlchen.types import StacksAddress, Timestamp
@@ -59,6 +63,8 @@ class StacksManager(ChainManagerWithTransactions[StacksAddress]):
         May raise RemoteError if there is a problem with querying the API.
         """
         chain_balances: defaultdict[StacksAddress, BalanceSheet] = defaultdict(BalanceSheet)
+        tokens_to_price: list[Asset] = []
+        address_token_balances: dict[StacksAddress, dict[Asset, FVal]] = {}
 
         if not addresses:
             return dict(chain_balances)
@@ -92,9 +98,75 @@ class StacksManager(ChainManagerWithTransactions[StacksAddress]):
                     value=balance * stx_price,
                 )
 
-            # Phase 3 will add SIP-10 fungible/non-fungible token balance queries
+            # Parse SIP-10 fungible token balances
+            token_balances = self._parse_fungible_tokens(response, address)
+            if token_balances:
+                tokens_to_price.extend(token_balances.keys())
+                address_token_balances[address] = token_balances
+
+        # Bulk fetch token prices for all addresses
+        if tokens_to_price:
+            token_prices = Inquirer.find_main_currency_prices(list(tokens_to_price))
+            for address, token_balances in address_token_balances.items():
+                for token, balance in token_balances.items():
+                    chain_balances[address].assets[token][DEFAULT_BALANCE_LABEL] = Balance(
+                        amount=balance,
+                        value=balance * token_prices.get(token, ZERO),
+                    )
 
         return dict(chain_balances)
+
+    def _parse_fungible_tokens(
+            self,
+            response: dict,
+            address: StacksAddress,
+    ) -> dict[Asset, FVal]:
+        """Parse SIP-10 fungible token balances from the API response.
+
+        Args:
+            response: The full API response from get_balances
+            address: The address being queried (for logging)
+
+        Returns:
+            Dictionary mapping token assets to their balances
+        """
+        token_balances: dict[Asset, FVal] = {}
+        fungible_tokens = response.get('fungible_tokens', {})
+
+        for token_id, token_data in fungible_tokens.items():
+            # Token ID format: CONTRACT_ID::asset-name
+            # We need just the CONTRACT_ID part
+            contract_parts = token_id.split('::')
+            if not contract_parts:
+                log.warning(f'Invalid token ID format for {address}: {token_id}')
+                continue
+
+            contract_id = StacksAddress(contract_parts[0])
+
+            try:
+                balance_raw = int(token_data.get('balance', '0'))
+            except (ValueError, TypeError):
+                log.error(f'Invalid token balance for {token_id} at {address}')
+                continue
+
+            if balance_raw == 0:
+                continue
+
+            try:
+                token = get_or_create_stacks_token(
+                    userdb=self.database,
+                    contract_id=contract_id,
+                )
+            except Exception as e:
+                log.error(f'Failed to get/create token {contract_id} for {address}: {e}')
+                continue
+
+            # SIP-10 tokens typically use 6 decimals like STX, but use token's decimals if known
+            balance = token_normalized_value_decimals(balance_raw, token.decimals)
+            token_balances[token] = balance
+            log.debug(f'Found {token} balance for {address}: {balance}')
+
+        return token_balances
 
     def query_transactions(
             self,
