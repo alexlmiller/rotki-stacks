@@ -2393,6 +2393,77 @@ class SolanaTransactionsFilterQuery(DBFilterQuery, FilterWithTimestamp):
         return filter_query
 
 
+class StacksTransactionsFilterQuery(DBFilterQuery, FilterWithTimestamp):
+    """Filter query for Stacks transactions.
+    If `tx_id` is provided, other filter parameters (timestamp, tx_type) are ignored.
+    """
+
+    @classmethod
+    def make(
+            cls: type['StacksTransactionsFilterQuery'],
+            and_op: bool = True,
+            order_by_rules: list[tuple[str, bool]] | None = None,
+            limit: int | None = None,
+            offset: int | None = None,
+            from_ts: Timestamp | None = None,
+            to_ts: Timestamp | None = None,
+            tx_id: str | None = None,
+            tx_type: str | None = None,
+            tx_status: str | None = None,
+    ) -> 'StacksTransactionsFilterQuery':
+        """May raise:
+        - InvalidFilter for invalid combination of filters
+        """
+        if order_by_rules is None:
+            order_by_rules = [('block_time', True)]
+
+        filter_query = cls.create(
+            and_op=and_op,
+            limit=limit,
+            offset=offset,
+            order_by_rules=order_by_rules,
+        )
+        # Create the timestamp filter so that from/to ts works. But add it only if needed
+        filter_query.timestamp_filter = DBTimestampFilter(
+            and_op=True,
+            from_ts=from_ts,
+            to_ts=to_ts,
+            timestamp_field='block_time',
+        )
+        filters: list[DBFilter] = []
+        if tx_id is not None:  # tx_id means single result so make it as single filter
+            filters.append(DBEqualsFilter(and_op=True, column='tx_id', value=tx_id))
+        else:
+            filters.append(filter_query.timestamp_filter)
+            if tx_type is not None:
+                filters.append(DBEqualsFilter(and_op=True, column='tx_type', value=tx_type))
+            if tx_status is not None:
+                filters.append(DBEqualsFilter(and_op=True, column='tx_status', value=tx_status))
+
+        filter_query.filters = filters
+        return filter_query
+
+
+class StacksTransactionsNotDecodedFilterQuery(DBFilterQuery):
+
+    @classmethod
+    def make(
+            cls: type['StacksTransactionsNotDecodedFilterQuery'],
+            limit: int | None = None,
+    ) -> 'StacksTransactionsNotDecodedFilterQuery':
+        filter_query = cls.create(
+            and_op=True,
+            limit=limit,
+            offset=None,
+            order_by_rules=[('A.block_time', True)],  # order by ascending timestamp
+        )
+        filter_query.filters = [DBTransactionsPendingDecodingFilter(
+            and_op=True,
+            mappings_table_name='stacks_tx_mappings',
+        )]
+        return filter_query
+
+
 @dataclass(init=True, repr=True, eq=True, order=False, unsafe_hash=False, frozen=False)
 class HistoricalBalancesFilterQuery(DBFilterQuery, FilterWithTimestamp):
     """Filter query for historical balances that join event_metrics with history_events."""

@@ -831,6 +831,43 @@ CREATE TABLE IF NOT EXISTS solana_ata_address_mappings (
 );
 """  # noqa: E501
 
+# Stacks blockchain transaction tables
+DB_CREATE_STACKS_TRANSACTIONS = """
+CREATE TABLE IF NOT EXISTS stacks_transactions (
+    identifier INTEGER PRIMARY KEY NOT NULL,
+    tx_id TEXT NOT NULL UNIQUE,
+    block_height INTEGER NOT NULL,
+    block_time INTEGER NOT NULL,
+    tx_type TEXT NOT NULL,
+    sender_address TEXT NOT NULL,
+    fee_rate TEXT NOT NULL,
+    nonce INTEGER NOT NULL,
+    tx_status TEXT NOT NULL,
+    recipient_address TEXT,
+    amount TEXT,
+    contract_id TEXT,
+    function_name TEXT
+);
+"""
+
+DB_CREATE_STACKS_ADDRESS_MAPPINGS = """
+CREATE TABLE IF NOT EXISTS stackstx_address_mappings (
+    tx_id INTEGER NOT NULL,
+    address TEXT NOT NULL,
+    PRIMARY KEY(tx_id, address),
+    FOREIGN KEY(tx_id) REFERENCES stacks_transactions(identifier) ON DELETE CASCADE ON UPDATE CASCADE
+);
+"""  # noqa: E501
+
+DB_CREATE_STACKS_TX_MAPPINGS = """
+CREATE TABLE IF NOT EXISTS stacks_tx_mappings (
+    tx_id INTEGER NOT NULL,
+    value INTEGER NOT NULL,
+    FOREIGN KEY(tx_id) references stacks_transactions(identifier) ON UPDATE CASCADE ON DELETE CASCADE,
+    PRIMARY KEY (tx_id, value)
+);
+"""  # noqa: E501
+
 # Lido CSM tracking tables. All columns are consumed by DBLidoCsm for enforcing the
 # FK to tracked Ethereum accounts and persisting cached metrics snapshots.
 DB_CREATE_LIDO_CSM_NODE_OPERATORS = """
@@ -971,6 +1008,9 @@ BEGIN TRANSACTION;
 {DB_CREATE_SOLANA_ADDRESS_MAPPINGS}
 {DB_CREATE_SOLANA_TX_MAPPINGS}
 {DB_CREATE_SOLANA_ATA_ADDRESS_MAPPINGS}
+{DB_CREATE_STACKS_TRANSACTIONS}
+{DB_CREATE_STACKS_ADDRESS_MAPPINGS}
+{DB_CREATE_STACKS_TX_MAPPINGS}
 {DB_CREATE_LIDO_CSM_NODE_OPERATORS}
 {DB_CREATE_LIDO_CSM_NODE_OPERATOR_METRICS}
 {DB_CREATE_EVENT_METRICS}

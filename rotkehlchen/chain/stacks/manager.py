@@ -10,6 +10,7 @@ from rotkehlchen.assets.utils import get_or_create_stacks_token, token_normalize
 from rotkehlchen.chain.manager import ChainManagerWithTransactions
 from rotkehlchen.chain.stacks.constants import micro_stx_to_stx
 from rotkehlchen.chain.stacks.node_inquirer import StacksInquirer
+from rotkehlchen.chain.stacks.transactions import StacksTransactions
 from rotkehlchen.constants import DEFAULT_BALANCE_LABEL
 from rotkehlchen.constants.assets import A_STX
 from rotkehlchen.constants.misc import ZERO
@@ -47,6 +48,10 @@ class StacksManager(ChainManagerWithTransactions[StacksAddress]):
         self.node_inquirer = node_inquirer
         self.database = node_inquirer.database
         self.premium = premium
+        self.transactions = StacksTransactions(
+            node_inquirer=node_inquirer,
+            database=node_inquirer.database,
+        )
 
     def query_balances(
             self,
@@ -181,12 +186,11 @@ class StacksManager(ChainManagerWithTransactions[StacksAddress]):
             from_timestamp: Start of time range
             to_timestamp: End of time range
 
-        Note:
-            Transaction support will be added in Phase 4.
-            Currently this is a no-op placeholder.
+        May raise RemoteError if there is a problem with querying the API.
         """
-        # TODO: Phase 4 will implement transaction querying
-        log.debug(
-            f'Stacks transaction query called for {len(addresses)} addresses '
-            f'(not yet implemented)',
-        )
+        for address in addresses:
+            self.transactions.query_transactions_for_address(
+                address=address,
+                from_ts=from_timestamp,
+                to_ts=to_timestamp,
+            )
