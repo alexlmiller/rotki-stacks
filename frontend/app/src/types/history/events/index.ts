@@ -11,12 +11,14 @@ export enum TransactionChainType {
   EVMLIKE = 'evmlike',
   BITCOIN = 'bitcoin',
   SOLANA = 'solana',
+  STACKS = 'stacks',
 }
 
 export const TransactionChainTypeNeedDecoding: TransactionChainType[] = [
   TransactionChainType.EVM,
   TransactionChainType.EVMLIKE,
   TransactionChainType.SOLANA,
+  TransactionChainType.STACKS,
 ] as const;
 
 export interface TransactionRequestPayload {
