@@ -29,19 +29,17 @@ class StacksInquirer:
             self,
             greenlet_manager: 'GreenletManager',
             database: 'DBHandler',
-            api_key: str | None = None,
     ) -> None:
         """Initialize the Stacks inquirer.
 
         Args:
             greenlet_manager: The greenlet manager for async operations
             database: The database handler
-            api_key: Optional Hiro API key for higher rate limits
         """
         self.greenlet_manager = greenlet_manager
         self.database = database
         self.blockchain = SupportedBlockchain.STACKS
-        self.api_client = StacksApiClient(database=database, api_key=api_key)
+        self.api_client = StacksApiClient(database=database)
 
     def get_stx_balance(self, address: StacksAddress) -> FVal:
         """Get the STX balance for an address.

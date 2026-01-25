@@ -13,8 +13,9 @@ from rotkehlchen.chain.stacks.constants import (
     MAX_RETRIES,
 )
 from rotkehlchen.errors.misc import RemoteError
+from rotkehlchen.externalapis.interface import ExternalServiceWithRecommendedApiKey
 from rotkehlchen.logging import RotkehlchenLogsAdapter
-from rotkehlchen.types import StacksAddress
+from rotkehlchen.types import ExternalService, StacksAddress
 
 if TYPE_CHECKING:
     from rotkehlchen.db.dbhandler import DBHandler
@@ -25,7 +26,7 @@ log = RotkehlchenLogsAdapter(logger)
 DEFAULT_TIMEOUT: Final = 30  # seconds
 
 
-class StacksApiClient:
+class StacksApiClient(ExternalServiceWithRecommendedApiKey):
     """Client for the Hiro Stacks REST API with rate limiting support.
 
     The Hiro API provides REST endpoints for querying Stacks blockchain data.
@@ -37,27 +38,19 @@ class StacksApiClient:
     respects retry-after headers when provided.
     """
 
-    def __init__(
-            self,
-            database: 'DBHandler',
-            api_key: str | None = None,
-    ) -> None:
+    def __init__(self, database: 'DBHandler') -> None:
         """Initialize the Stacks API client.
 
         Args:
-            database: The database handler for settings lookup
-            api_key: Optional Hiro API key for higher rate limits
+            database: The database handler for API key lookup
         """
-        self.database = database
-        self.api_key = api_key
+        super().__init__(database=database, service_name=ExternalService.HIRO)
         self.base_url = HIRO_API_BASE_URL
         self.session = requests.Session()
         self.session.headers.update({
             'Accept': 'application/json',
             'Content-Type': 'application/json',
         })
-        if api_key:
-            self.session.headers['x-api-key'] = api_key
 
     def _make_request(
             self,
@@ -76,6 +69,13 @@ class StacksApiClient:
         Raises:
             RemoteError: If the request fails after all retries
         """
+        # Update headers with API key on each request (may change at runtime)
+        api_key = self._get_api_key()
+        if api_key:
+            self.session.headers['x-api-key'] = api_key
+        elif 'x-api-key' in self.session.headers:
+            del self.session.headers['x-api-key']
+
         url = f'{self.base_url}/{endpoint}'
         backoff = INITIAL_BACKOFF
         last_error: Exception | None = None

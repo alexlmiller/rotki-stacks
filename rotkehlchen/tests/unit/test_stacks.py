@@ -260,26 +260,38 @@ class TestStacksApiClient:
         assert StacksApiClient is not None
 
     def test_api_client_with_api_key(self) -> None:
-        """Test API client sets API key header."""
+        """Test API client retrieves API key from database."""
         from unittest.mock import MagicMock
 
         from rotkehlchen.chain.stacks.api_client import StacksApiClient
+        from rotkehlchen.types import ApiKey, ExternalServiceApiCredentials
 
         mock_db = MagicMock()
-        client = StacksApiClient(database=mock_db, api_key='test-api-key')
-        assert client.api_key == 'test-api-key'
-        assert 'x-api-key' in client.session.headers
-        assert client.session.headers['x-api-key'] == 'test-api-key'
+        # Mock the database to return API credentials
+        mock_db.get_external_service_credentials.return_value = ExternalServiceApiCredentials(
+            service=MagicMock(),
+            api_key=ApiKey('test-api-key'),
+        )
+
+        client = StacksApiClient(database=mock_db)
+        # The API key is fetched dynamically from the database
+        api_key = client._get_api_key()
+        assert api_key == 'test-api-key'
 
     def test_api_client_without_api_key(self) -> None:
-        """Test API client works without API key."""
+        """Test API client works without API key in database."""
         from unittest.mock import MagicMock
 
         from rotkehlchen.chain.stacks.api_client import StacksApiClient
 
         mock_db = MagicMock()
+        # Mock the database to return no credentials
+        mock_db.get_external_service_credentials.return_value = None
+
         client = StacksApiClient(database=mock_db)
-        assert client.api_key is None
+        # No API key should be returned
+        api_key = client._get_api_key()
+        assert api_key is None
         assert 'x-api-key' not in client.session.headers
 
 

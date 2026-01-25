@@ -2752,6 +2752,11 @@
       "hint": "Enter your Helius API key",
       "title": "Helius"
     },
+    "hiro": {
+      "description": "Recommended for Stacks blockchain to avoid rate limits when querying transactions and balances.",
+      "hint": "Enter your Hiro API key",
+      "title": "Hiro"
+    },
     "loopring": {
       "description": "Used to query balances in Loopring. This API key will only be able to query the account that generated this key.",
       "hint": "Enter your Loopring API key",
