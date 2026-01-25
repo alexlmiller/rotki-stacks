@@ -16,6 +16,7 @@ from rotkehlchen.assets.asset import (
     EvmToken,
     Nft,
     SolanaToken,
+    StacksToken,
     UnderlyingToken,
 )
 from rotkehlchen.assets.ignored_assets_handling import IgnoredAssetsHandling
@@ -251,6 +252,9 @@ class GlobalDBHandler:
                     elif asset.is_solana_token():
                         asset = cast('SolanaToken', asset)
                         GlobalDBHandler.add_solana_token_data(write_cursor, asset)
+                    elif asset.is_stacks_token():
+                        asset = cast('StacksToken', asset)
+                        GlobalDBHandler.add_stacks_token_data(write_cursor, asset)
                     else:
                         asset = cast('CryptoAsset', asset)
 
@@ -1162,11 +1166,30 @@ class GlobalDBHandler:
         )
 
     @staticmethod
+    def add_stacks_token_data(write_cursor: DBCursor, entry: 'StacksToken') -> None:
+        """Adds stacks token specific information into the global DB
+
+        May raise InputError if the token already exists
+        """
+        GlobalDBHandler._add_token_data(
+            write_cursor=write_cursor,
+            query='INSERT INTO stacks_tokens (identifier, token_kind, contract_id, decimals, protocol) VALUES (?,?,?,?,?)',  # noqa: E501
+            bindings=(
+                entry.identifier,
+                entry.token_kind.serialize_for_db(),
+                entry.contract_id,
+                entry.decimals,
+                entry.protocol,
+            ),
+            token_type='stacks',
+        )
+
+    @staticmethod
     def _add_token_data(
             write_cursor: 'DBCursor',
             query: str,
             bindings: tuple,
-            token_type: Literal['evm', 'solana'],
+            token_type: Literal['evm', 'solana', 'stacks'],
             post_insert_callback: Callable | None = None,
     ) -> None:
         """Generic function to add token-specific data to the global DB"""
@@ -1255,8 +1278,33 @@ class GlobalDBHandler:
         )
 
     @staticmethod
+    def edit_stacks_token(entry: StacksToken) -> str:
+        """Edits a Stacks token entry in the DB
+        May raise:
+        - InputError if there is an error during updating
+
+        Returns the token's rotki identifier and clears the cache of the asset resolver
+        """
+        return GlobalDBHandler._edit_token(
+            entry=entry,
+            token_specific_update_callback=lambda _write_cursor, _entry: _write_cursor.execute(
+                'UPDATE stacks_tokens SET token_kind=?, contract_id=?, decimals=?, '
+                'protocol=? WHERE identifier=?',
+                (
+                    _entry.token_kind.serialize_for_db(),
+                    _entry.contract_id,
+                    _entry.decimals,
+                    _entry.protocol,
+                    _entry.identifier,
+                ),
+            ),
+            address=entry.contract_id,
+            check_rowcount=True,
+        )
+
+    @staticmethod
     def _edit_token(
-            entry: SolanaToken | EvmToken,
+            entry: SolanaToken | EvmToken | StacksToken,
             check_rowcount: bool,
             token_specific_update_callback: Callable,
             address: SolanaAddress | ChecksumEvmAddress | None,
@@ -2088,8 +2136,11 @@ class GlobalDBHandler:
         SELECT A.identifier, A.type, B.address, B.decimals, A.name, C.symbol, C.started, null, C.swapped_for, C.coingecko, C.cryptocompare, B.protocol, null, B.token_kind, null, null FROM assets as A JOIN solana_tokens as B
         ON B.identifier = A.identifier JOIN common_asset_details AS C ON C.identifier = B.identifier WHERE A.type = ? AND A.identifier = ?
         UNION ALL
+        SELECT A.identifier, A.type, B.contract_id, B.decimals, A.name, C.symbol, C.started, null, C.swapped_for, C.coingecko, C.cryptocompare, B.protocol, null, B.token_kind, null, null FROM assets as A JOIN stacks_tokens as B
+        ON B.identifier = A.identifier JOIN common_asset_details AS C ON C.identifier = B.identifier WHERE A.type = ? AND A.identifier = ?
+        UNION ALL
         SELECT A.identifier, A.type, null, null, A.name, B.symbol, B.started, B.forked, B.swapped_for, B.coingecko, B.cryptocompare, null, null, null, null, null from assets as A JOIN common_asset_details as B
-        ON B.identifier = A.identifier WHERE A.type != ? AND A.type != ? AND A.identifier = ?
+        ON B.identifier = A.identifier WHERE A.type != ? AND A.type != ? AND A.type != ? AND A.identifier = ?
         UNION ALL
         SELECT A.identifier, A.type, null, null, A.name, null, null, null, null, null, null, null, null, null, B.notes, B.type FROM assets AS A JOIN custom_assets AS B on A.identifier=B.identifier WHERE A.identifier = ?
         """  # noqa: E501
@@ -2102,8 +2153,11 @@ class GlobalDBHandler:
                     identifier,
                     AssetType.SOLANA_TOKEN.serialize_for_db(),
                     identifier,
+                    AssetType.STACKS_TOKEN.serialize_for_db(),
+                    identifier,
                     AssetType.EVM_TOKEN.serialize_for_db(),
                     AssetType.CUSTOM_ASSET.serialize_for_db(),
+                    AssetType.STACKS_TOKEN.serialize_for_db(),
                     identifier,
                     identifier,
                 ),
@@ -2154,6 +2208,8 @@ class GlobalDBHandler:
             self.edit_evm_token(cast('EvmToken', asset))
         elif asset.asset_type == AssetType.SOLANA_TOKEN:
             self.edit_solana_token(cast('SolanaToken', asset))
+        elif asset.asset_type == AssetType.STACKS_TOKEN:
+            self.edit_stacks_token(cast('StacksToken', asset))
         else:
             self.edit_user_asset(cast('CryptoAsset', asset))
 

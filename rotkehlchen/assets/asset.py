@@ -145,6 +145,9 @@ class Asset:
     def is_solana_token(self) -> bool:
         return self.get_asset_type() == AssetType.SOLANA_TOKEN
 
+    def is_stacks_token(self) -> bool:
+        return self.get_asset_type() == AssetType.STACKS_TOKEN
+
     def is_crypto(self) -> bool:
         return self.get_asset_type() not in NON_CRYPTO_ASSETS
 

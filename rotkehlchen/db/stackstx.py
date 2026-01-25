@@ -27,24 +27,25 @@ class DBStacksTx(DBCommonTx[StacksAddress, StacksTransaction, str, StacksTransac
     """Database handler for Stacks transactions."""
 
     @staticmethod
-    def _extract_indexed_args(tx: StacksTransaction) -> dict[str, int | str | None]:
+    def _extract_indexed_args(tx: StacksTransaction) -> dict[str, str | None]:
         """Extract commonly-queried argument values for indexing.
 
         Returns a dict with keys: arg_amount_ustx, arg_recipient, arg_delegate_to
+        All values are stored as TEXT to avoid SQLite integer overflow.
         """
-        indexed: dict[str, int | str | None] = {
+        indexed: dict[str, str | None] = {
             'arg_amount_ustx': None,
             'arg_recipient': None,
             'arg_delegate_to': None,
         }
 
-        # Extract amount from various arg names
+        # Extract amount from various arg names (store as string to avoid overflow)
         if (amount := tx.get_uint_arg('amount-ustx')) is not None:
-            indexed['arg_amount_ustx'] = amount
+            indexed['arg_amount_ustx'] = str(amount)
         elif (amount := tx.get_uint_arg('increase-by')) is not None:
-            indexed['arg_amount_ustx'] = amount
+            indexed['arg_amount_ustx'] = str(amount)
         elif (amount := tx.get_uint_arg('ustx')) is not None:
-            indexed['arg_amount_ustx'] = amount
+            indexed['arg_amount_ustx'] = str(amount)
         elif tx.get_arg('amount-ustx') is not None:
             log.warning(f'Failed to parse amount-ustx argument in tx {tx.tx_id}')
         elif tx.get_arg('increase-by') is not None:

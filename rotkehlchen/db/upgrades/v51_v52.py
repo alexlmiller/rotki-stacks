@@ -47,7 +47,7 @@ def upgrade_v51_to_v52(db: 'DBHandler', progress_handler: 'DBUpgradeProgressHand
             contract_id TEXT,
             function_name TEXT,
             function_args TEXT,
-            arg_amount_ustx INTEGER,
+            arg_amount_ustx TEXT,
             arg_recipient TEXT,
             arg_delegate_to TEXT
         );

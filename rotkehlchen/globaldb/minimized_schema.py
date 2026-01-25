@@ -25,6 +25,7 @@ MINIMIZED_GLOBAL_DB_SCHEMA = {
     "location_unsupported_assets": "locationchar(1)notnull,exchange_symboltextnotnull,unique(location,exchange_symbol)",
     "counterparty_asset_mappings": "counterpartytextnotnull,symboltextnotnull,local_idtextnotnullcollatenocase,primarykey(counterparty,symbol)",
     "solana_tokens": "identifiertextprimarykeynotnullcollatenocase,token_kindchar(1)notnulldefault('d')referencestoken_kinds(token_kind),addressvarchar[44]notnull,decimalsinteger,protocoltext,foreignkey(identifier)referencesassets(identifier)onupdatecascadeondeletecascade",
+    "stacks_tokens": "identifiertextprimarykeynotnullcollatenocase,token_kindchar(1)notnulldefault('f')referencestoken_kinds(token_kind),contract_idtextnotnull,decimalsinteger,protocoltext,foreignkey(identifier)referencesassets(identifier)onupdatecascadeondeletecascade",
 }
 
 MINIMIZED_GLOBAL_DB_INDEXES = {
@@ -40,4 +41,5 @@ MINIMIZED_GLOBAL_DB_INDEXES = {
     "idx_binance_pairs_identifier": "createindexifnotexistsidx_binance_pairs_identifieronbinance_pairs(base_asset,quote_asset)",
     "idx_multiasset_mappings_identifier": "createindexifnotexistsidx_multiasset_mappings_identifieronmultiasset_mappings(asset)",
     "idx_solana_tokens_identifier": "createindexifnotexistsidx_solana_tokens_identifieronsolana_tokens(identifier,protocol)",
+    "idx_stacks_tokens_identifier": "createindexifnotexistsidx_stacks_tokens_identifieronstacks_tokens(identifier,protocol)",
 }

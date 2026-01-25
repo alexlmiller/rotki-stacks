@@ -850,7 +850,7 @@ CREATE TABLE IF NOT EXISTS stacks_transactions (
     contract_id TEXT,
     function_name TEXT,
     function_args TEXT,
-    arg_amount_ustx INTEGER,
+    arg_amount_ustx TEXT,
     arg_recipient TEXT,
     arg_delegate_to TEXT
 );

@@ -65,6 +65,13 @@ declare module 'vue-router/auto-routes' {
       Record<never, never>,
       | never
     >,
+    'accounts-stacks': RouteRecordInfo<
+      'accounts-stacks',
+      '/accounts/stacks',
+      Record<never, never>,
+      Record<never, never>,
+      | never
+    >,
     'accounts-substrate': RouteRecordInfo<
       'accounts-substrate',
       '/accounts/substrate',
@@ -529,6 +536,12 @@ declare module 'vue-router/auto-routes' {
     'src/pages/accounts/solana/index.vue': {
       routes:
         | 'accounts-solana'
+      views:
+        | never
+    }
+    'src/pages/accounts/stacks/index.vue': {
+      routes:
+        | 'accounts-stacks'
       views:
         | never
     }
