@@ -10,6 +10,7 @@ from rotkehlchen.logging import RotkehlchenLogsAdapter
 from .constants import (
     CPT_SBTC,
     SBTC_COMPLETE_DEPOSIT,
+    SBTC_COMPLETE_DEPOSITS,
     SBTC_CONTRACTS,
     SBTC_INITIATE_WITHDRAWAL,
 )
@@ -47,7 +48,7 @@ def decode_sbtc_events(
     additional_events: list[StacksEvent] = []
 
     # Handle pegin (BTC → sBTC deposit)
-    if transaction.function_name == SBTC_COMPLETE_DEPOSIT:
+    if transaction.function_name in (SBTC_COMPLETE_DEPOSIT, SBTC_COMPLETE_DEPOSITS):
         # Find any sBTC receive events and mark them as bridge deposits
         for event in existing_events:
             if (
