@@ -13,6 +13,8 @@ from .constants import (
     VELAR_LIQUIDITY_FUNCTIONS,
     VELAR_STAKING_FUNCTIONS,
     VELAR_SWAP_FUNCTIONS,
+    VELAR_XYK_DEPLOYER,
+    VELAR_XYK_STAKING_FUNCTIONS,
 )
 
 if TYPE_CHECKING:
@@ -23,10 +25,19 @@ log = RotkehlchenLogsAdapter(logger)
 
 
 def is_velar_transaction(transaction: StacksTransaction) -> bool:
-    """Check if the transaction involves Velar contracts."""
+    """Check if the transaction involves Velar contracts.
+
+    Velar has two sets of contracts:
+    1. Core UniV2 contracts at SP1Y5YSTAHZ88XYK1VPDH24GY0HPX5J4JECTMY4A1
+    2. XYK LP staking contracts at SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR
+    """
     if transaction.contract_id is None:
         return False
-    return transaction.contract_id in VELAR_CONTRACTS
+    # Check explicit contract list or XYK staking contracts (pattern: deployer.xyk-*)
+    return (
+        transaction.contract_id in VELAR_CONTRACTS or
+        transaction.contract_id.startswith(VELAR_XYK_DEPLOYER + '.xyk-')
+    )
 
 
 def _decode_velar_swap(
@@ -183,6 +194,60 @@ def _decode_velar_staking(
         log.debug(f'Decoded Velar claim rewards in {transaction.tx_id}')
 
 
+def _decode_velar_xyk_staking(
+        transaction: StacksTransaction,
+        base_tools: 'StacksDecoderTools',
+        existing_events: list[StacksEvent],
+) -> None:
+    """Decode Velar XYK LP staking transactions."""
+    function_name = transaction.function_name
+
+    if function_name == 'stake-lp-tokens':
+        for event in existing_events:
+            if (
+                event.event_type == HistoryEventType.SPEND and
+                event.event_subtype == HistoryEventSubType.NONE and
+                event.location_label == transaction.sender_address
+            ):
+                event.event_type = HistoryEventType.STAKING
+                event.event_subtype = HistoryEventSubType.DEPOSIT_ASSET
+                event.counterparty = CPT_VELAR
+                symbol = event.asset.resolve_to_asset_with_symbol().symbol
+                event.notes = f'Stake {event.amount} {symbol} LP tokens on Velar'
+
+        log.debug(f'Decoded Velar XYK stake LP in {transaction.tx_id}')
+
+    elif function_name == 'unstake-lp-tokens':
+        for event in existing_events:
+            if (
+                event.event_type == HistoryEventType.RECEIVE and
+                event.event_subtype == HistoryEventSubType.NONE and
+                event.location_label == transaction.sender_address
+            ):
+                event.event_type = HistoryEventType.STAKING
+                event.event_subtype = HistoryEventSubType.REMOVE_ASSET
+                event.counterparty = CPT_VELAR
+                symbol = event.asset.resolve_to_asset_with_symbol().symbol
+                event.notes = f'Unstake {event.amount} {symbol} LP tokens from Velar'
+
+        log.debug(f'Decoded Velar XYK unstake LP in {transaction.tx_id}')
+
+    elif function_name == 'claim-staking-reward':
+        for event in existing_events:
+            if (
+                event.event_type == HistoryEventType.RECEIVE and
+                event.event_subtype == HistoryEventSubType.NONE and
+                event.location_label == transaction.sender_address
+            ):
+                event.event_type = HistoryEventType.STAKING
+                event.event_subtype = HistoryEventSubType.REWARD
+                event.counterparty = CPT_VELAR
+                symbol = event.asset.resolve_to_asset_with_symbol().symbol
+                event.notes = f'Claim {event.amount} {symbol} LP staking reward from Velar'
+
+        log.debug(f'Decoded Velar XYK claim reward in {transaction.tx_id}')
+
+
 def decode_velar_events(
         transaction: StacksTransaction,
         base_tools: 'StacksDecoderTools',
@@ -193,7 +258,8 @@ def decode_velar_events(
     Handles:
     - Swaps
     - Liquidity provision
-    - Staking
+    - Staking (VELAR token)
+    - XYK LP staking
 
     Returns list of additional events to add (may modify existing_events in place).
     """
@@ -208,5 +274,7 @@ def decode_velar_events(
         _decode_velar_liquidity(transaction, base_tools, existing_events)
     elif function_name in VELAR_STAKING_FUNCTIONS:
         _decode_velar_staking(transaction, base_tools, existing_events)
+    elif function_name in VELAR_XYK_STAKING_FUNCTIONS:
+        _decode_velar_xyk_staking(transaction, base_tools, existing_events)
 
     return []
