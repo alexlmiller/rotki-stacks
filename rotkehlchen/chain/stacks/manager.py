@@ -9,6 +9,8 @@ from rotkehlchen.assets.asset import Asset
 from rotkehlchen.assets.utils import get_or_create_stacks_token, token_normalized_value_decimals
 from rotkehlchen.chain.manager import ChainManagerWithTransactions
 from rotkehlchen.chain.stacks.constants import micro_stx_to_stx
+from rotkehlchen.chain.stacks.decoding.decoder import StacksTransactionDecoder
+from rotkehlchen.chain.stacks.decoding.tools import StacksDecoderTools
 from rotkehlchen.chain.stacks.node_inquirer import StacksInquirer
 from rotkehlchen.chain.stacks.transactions import StacksTransactions
 from rotkehlchen.constants import DEFAULT_BALANCE_LABEL
@@ -51,6 +53,17 @@ class StacksManager(ChainManagerWithTransactions[StacksAddress]):
         self.transactions = StacksTransactions(
             node_inquirer=node_inquirer,
             database=node_inquirer.database,
+        )
+        base_tools = StacksDecoderTools(
+            database=node_inquirer.database,
+            node_inquirer=node_inquirer,
+        )
+        self.decoder = StacksTransactionDecoder(
+            database=node_inquirer.database,
+            node_inquirer=node_inquirer,
+            transactions=self.transactions,
+            base_tools=base_tools,
+            premium=premium,
         )
 
     def query_balances(
@@ -194,3 +207,22 @@ class StacksManager(ChainManagerWithTransactions[StacksAddress]):
                 from_ts=from_timestamp,
                 to_ts=to_timestamp,
             )
+
+    def decode_undecoded_transactions(
+            self,
+            limit: int | None = None,
+            send_ws_notifications: bool = False,
+    ) -> list[str]:
+        """Decode any undecoded transactions in the database.
+
+        Args:
+            limit: Optional limit on number of transactions to decode
+            send_ws_notifications: Whether to send WebSocket progress notifications
+
+        Returns:
+            List of transaction IDs that were decoded
+        """
+        return self.decoder.get_and_decode_undecoded_transactions(
+            limit=limit,
+            send_ws_notifications=send_ws_notifications,
+        )

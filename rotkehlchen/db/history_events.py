@@ -60,6 +60,7 @@ from rotkehlchen.history.events.structures.evm_swap import EvmSwapEvent
 from rotkehlchen.history.events.structures.onchain_event import OnchainEvent
 from rotkehlchen.history.events.structures.solana_event import SolanaEvent
 from rotkehlchen.history.events.structures.solana_swap import SolanaSwapEvent
+from rotkehlchen.history.events.structures.stacks_event import StacksEvent
 from rotkehlchen.history.events.structures.swap import SwapEvent
 from rotkehlchen.history.events.structures.types import HistoryEventSubType
 from rotkehlchen.history.price import query_price_or_use_default
@@ -898,6 +899,11 @@ class DBHistoryEvents:
                     deserialized_event = EthDepositEvent.deserialize_from_db(data)
                 elif entry_type == HistoryBaseEntryType.SOLANA_EVENT:
                     deserialized_event = SolanaEvent.deserialize_from_db(
+                        entry[data_start_idx:data_start_idx + HISTORY_BASE_ENTRY_LENGTH + 1] +
+                        entry[data_start_idx + HISTORY_BASE_ENTRY_LENGTH + 1:data_start_idx + HISTORY_BASE_ENTRY_LENGTH + CHAIN_FIELD_LENGTH + 1],  # noqa: E501
+                    )
+                elif entry_type == HistoryBaseEntryType.STACKS_EVENT:
+                    deserialized_event = StacksEvent.deserialize_from_db(
                         entry[data_start_idx:data_start_idx + HISTORY_BASE_ENTRY_LENGTH + 1] +
                         entry[data_start_idx + HISTORY_BASE_ENTRY_LENGTH + 1:data_start_idx + HISTORY_BASE_ENTRY_LENGTH + CHAIN_FIELD_LENGTH + 1],  # noqa: E501
                     )
