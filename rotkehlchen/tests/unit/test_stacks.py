@@ -488,34 +488,35 @@ class TestStacksCuratedTokenMetadata:
         from rotkehlchen.chain.stacks.constants import CURATED_STACKS_TOKENS
 
         assert len(CURATED_STACKS_TOKENS) > 0
-        # Check that sBTC is in the curated tokens
-        assert 'SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.sbtc-token' in CURATED_STACKS_TOKENS
+        # Check that sBTC mainnet contract is in the curated tokens
+        assert 'SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token' in CURATED_STACKS_TOKENS
 
     def test_get_curated_token_metadata_sbtc(self) -> None:
-        """Test getting metadata for sBTC token."""
+        """Test getting metadata for sBTC token (mainnet contract)."""
         from rotkehlchen.chain.stacks.constants import get_curated_token_metadata
 
         metadata = get_curated_token_metadata(
-            'SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.sbtc-token',
+            'SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token',
         )
         assert metadata is not None
         assert metadata.name == 'sBTC'
         assert metadata.symbol == 'sBTC'
         assert metadata.decimals == 8
-        assert metadata.coingecko == 'sbtc'
+        assert metadata.coingecko == 'sbtc-2'
         assert metadata.protocol == 'sbtc'
 
     def test_get_curated_token_metadata_ststx(self) -> None:
-        """Test getting metadata for stSTX token."""
+        """Test getting metadata for stSTX token (mainnet contract)."""
         from rotkehlchen.chain.stacks.constants import get_curated_token_metadata
 
         metadata = get_curated_token_metadata(
-            'SM3KNVZS30WM7F89SXKVVFY4SN9RMPZZ9FX929N0V.ststx-token',
+            'SP4SZE494VC2YC5JYG7AYFQ44F5Q4PYV7DVMDPBG.ststx-token',
         )
         assert metadata is not None
         assert metadata.name == 'Stacked STX'
         assert metadata.symbol == 'stSTX'
         assert metadata.decimals == 6
+        assert metadata.coingecko == 'stacking-dao'
         assert metadata.protocol == 'stackingdao'
 
     def test_get_curated_token_metadata_unknown(self) -> None:
