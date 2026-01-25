@@ -109,7 +109,7 @@ class DBStacksTx(DBCommonTx[StacksAddress, StacksTransaction, str, StacksTransac
 
     def _get_txs_not_decoded_column_and_query(self) -> tuple[str, str]:
         return (
-            'tx_id',
+            'A.tx_id',
             (
                 'stacks_transactions AS A LEFT JOIN stacks_tx_mappings AS B '
                 'ON A.identifier = B.tx_id '
