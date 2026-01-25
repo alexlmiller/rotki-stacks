@@ -255,3 +255,47 @@ class StacksTransactions:
             period=(start_ts, end_ts),
             status=TransactionStatusStep.QUERYING_TRANSACTIONS_FINISHED,
         )
+
+    def query_transactions_in_range(
+            self,
+            address: StacksAddress,
+            start_ts: Timestamp,
+            end_ts: Timestamp,
+            return_queried_hashes: bool = False,
+    ) -> list[str] | None:
+        """Query and save transactions for an address in the given time range.
+
+        Returns the tx_ids queried in this run when requested.
+        """
+        # Get existing tx_ids to track what's new
+        existing_before: set[str] = set()
+        with self.database.conn.read_ctx() as cursor:
+            cursor.execute(
+                'SELECT DISTINCT S.tx_id FROM stackstx_address_mappings AS M '
+                'INNER JOIN stacks_transactions AS S ON S.identifier = M.tx_id '
+                'WHERE M.address = ?',
+                (address,),
+            )
+            existing_before = {row[0] for row in cursor}
+
+        # Query transactions for the address
+        self.query_transactions_for_address(
+            address=address,
+            from_ts=start_ts,
+            to_ts=end_ts,
+        )
+
+        if not return_queried_hashes:
+            return None
+
+        # Get the newly added tx_ids
+        with self.database.conn.read_ctx() as cursor:
+            cursor.execute(
+                'SELECT DISTINCT S.tx_id FROM stackstx_address_mappings AS M '
+                'INNER JOIN stacks_transactions AS S ON S.identifier = M.tx_id '
+                'WHERE M.address = ?',
+                (address,),
+            )
+            existing_after = {row[0] for row in cursor}
+
+        return list(existing_after - existing_before)

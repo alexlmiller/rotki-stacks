@@ -58,7 +58,7 @@ class StacksManager(ChainManagerWithTransactions[StacksAddress]):
             database=node_inquirer.database,
             node_inquirer=node_inquirer,
         )
-        self.decoder = StacksTransactionDecoder(
+        self.transactions_decoder = StacksTransactionDecoder(
             database=node_inquirer.database,
             node_inquirer=node_inquirer,
             transactions=self.transactions,
@@ -222,7 +222,7 @@ class StacksManager(ChainManagerWithTransactions[StacksAddress]):
         Returns:
             List of transaction IDs that were decoded
         """
-        return self.decoder.get_and_decode_undecoded_transactions(
+        return self.transactions_decoder.get_and_decode_undecoded_transactions(
             limit=limit,
             send_ws_notifications=send_ws_notifications,
         )
