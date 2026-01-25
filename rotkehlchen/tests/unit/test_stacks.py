@@ -213,3 +213,268 @@ class TestStacksAddressType:
         address: StacksAddress = StacksAddress('SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7')
         assert isinstance(address, str)
         assert address == 'SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7'
+
+
+# Phase 2 Tests - API Client, Node Inquirer, Manager
+
+
+class TestStacksConstants:
+    """Tests for Stacks constants module."""
+
+    def test_constants_exist(self) -> None:
+        """Test that all constants are properly defined."""
+        from rotkehlchen.chain.stacks.constants import (
+            BACKOFF_MULTIPLIER,
+            HIRO_API_BASE_URL,
+            INITIAL_BACKOFF,
+            MAX_RETRIES,
+            STX_DECIMALS,
+        )
+        assert HIRO_API_BASE_URL == 'https://api.mainnet.hiro.so'
+        assert INITIAL_BACKOFF == 4
+        assert BACKOFF_MULTIPLIER == 2
+        assert MAX_RETRIES == 3
+        assert STX_DECIMALS == 6
+
+    def test_micro_stx_to_stx_conversion(self) -> None:
+        """Test microSTX to STX conversion."""
+        from rotkehlchen.chain.stacks.constants import micro_stx_to_stx
+        from rotkehlchen.fval import FVal
+
+        # 1 STX = 1,000,000 microSTX
+        assert micro_stx_to_stx(1_000_000) == FVal(1)
+        assert micro_stx_to_stx(500_000) == FVal('0.5')
+        assert micro_stx_to_stx(0) == FVal(0)
+        assert micro_stx_to_stx(1) == FVal('0.000001')
+        assert micro_stx_to_stx(123_456_789) == FVal('123.456789')
+
+
+class TestStacksApiClient:
+    """Tests for StacksApiClient."""
+
+    def test_api_client_initialization(self) -> None:
+        """Test API client can be initialized."""
+        from rotkehlchen.chain.stacks.api_client import StacksApiClient
+
+        # We can't create a real client without a DB, but we can import it
+        assert StacksApiClient is not None
+
+    def test_api_client_with_api_key(self) -> None:
+        """Test API client sets API key header."""
+        from unittest.mock import MagicMock
+
+        from rotkehlchen.chain.stacks.api_client import StacksApiClient
+
+        mock_db = MagicMock()
+        client = StacksApiClient(database=mock_db, api_key='test-api-key')
+        assert client.api_key == 'test-api-key'
+        assert 'x-api-key' in client.session.headers
+        assert client.session.headers['x-api-key'] == 'test-api-key'
+
+    def test_api_client_without_api_key(self) -> None:
+        """Test API client works without API key."""
+        from unittest.mock import MagicMock
+
+        from rotkehlchen.chain.stacks.api_client import StacksApiClient
+
+        mock_db = MagicMock()
+        client = StacksApiClient(database=mock_db)
+        assert client.api_key is None
+        assert 'x-api-key' not in client.session.headers
+
+
+class TestStacksNodeInquirer:
+    """Tests for StacksInquirer."""
+
+    def test_inquirer_initialization(self) -> None:
+        """Test node inquirer can be initialized."""
+        from unittest.mock import MagicMock
+
+        from rotkehlchen.chain.stacks.node_inquirer import StacksInquirer
+
+        mock_gm = MagicMock()
+        mock_db = MagicMock()
+        inquirer = StacksInquirer(
+            greenlet_manager=mock_gm,
+            database=mock_db,
+        )
+        assert inquirer.blockchain == SupportedBlockchain.STACKS
+        assert inquirer.api_client is not None
+
+    def test_inquirer_with_empty_response(self) -> None:
+        """Test inquirer handles empty API response."""
+        from unittest.mock import MagicMock, patch
+
+        from rotkehlchen.chain.stacks.node_inquirer import StacksInquirer
+        from rotkehlchen.fval import FVal
+
+        mock_gm = MagicMock()
+        mock_db = MagicMock()
+        inquirer = StacksInquirer(greenlet_manager=mock_gm, database=mock_db)
+
+        # Mock the API client to return empty response
+        with patch.object(inquirer.api_client, 'get_account_balances', return_value={}):
+            balance = inquirer.get_stx_balance(
+                StacksAddress('SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7'),
+            )
+            assert balance == FVal(0)
+
+    def test_inquirer_with_balance_response(self) -> None:
+        """Test inquirer parses STX balance from API response."""
+        from unittest.mock import MagicMock, patch
+
+        from rotkehlchen.chain.stacks.node_inquirer import StacksInquirer
+        from rotkehlchen.fval import FVal
+
+        mock_gm = MagicMock()
+        mock_db = MagicMock()
+        inquirer = StacksInquirer(greenlet_manager=mock_gm, database=mock_db)
+
+        # Mock response with 10 STX (10,000,000 microSTX)
+        mock_response = {
+            'stx': {
+                'balance': '10000000',
+                'total_sent': '0',
+                'total_received': '10000000',
+            },
+            'fungible_tokens': {},
+            'non_fungible_tokens': {},
+        }
+
+        with patch.object(inquirer.api_client, 'get_account_balances', return_value=mock_response):
+            balance = inquirer.get_stx_balance(
+                StacksAddress('SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7'),
+            )
+            assert balance == FVal(10)
+
+
+class TestStacksManager:
+    """Tests for StacksManager."""
+
+    def test_manager_initialization(self) -> None:
+        """Test manager can be initialized."""
+        from unittest.mock import MagicMock
+
+        from rotkehlchen.chain.stacks.manager import StacksManager
+        from rotkehlchen.chain.stacks.node_inquirer import StacksInquirer
+
+        mock_gm = MagicMock()
+        mock_db = MagicMock()
+        inquirer = StacksInquirer(greenlet_manager=mock_gm, database=mock_db)
+        manager = StacksManager(node_inquirer=inquirer)
+
+        assert manager.node_inquirer is inquirer
+        assert manager.database is mock_db
+
+    def test_manager_query_balances_empty(self) -> None:
+        """Test manager handles empty address list."""
+        from unittest.mock import MagicMock
+
+        from rotkehlchen.chain.stacks.manager import StacksManager
+        from rotkehlchen.chain.stacks.node_inquirer import StacksInquirer
+
+        mock_gm = MagicMock()
+        mock_db = MagicMock()
+        inquirer = StacksInquirer(greenlet_manager=mock_gm, database=mock_db)
+        manager = StacksManager(node_inquirer=inquirer)
+
+        balances = manager.query_balances([])
+        assert balances == {}
+
+    def test_manager_query_balances_with_address(self) -> None:
+        """Test manager queries balances for addresses."""
+        from unittest.mock import MagicMock, patch
+
+        from rotkehlchen.chain.stacks.manager import StacksManager
+        from rotkehlchen.chain.stacks.node_inquirer import StacksInquirer
+        from rotkehlchen.constants import DEFAULT_BALANCE_LABEL
+        from rotkehlchen.constants.assets import A_STX
+        from rotkehlchen.fval import FVal
+
+        mock_gm = MagicMock()
+        mock_db = MagicMock()
+        inquirer = StacksInquirer(greenlet_manager=mock_gm, database=mock_db)
+        manager = StacksManager(node_inquirer=inquirer)
+
+        # Mock response with 100 STX (100,000,000 microSTX)
+        mock_response = {
+            'stx': {'balance': '100000000'},
+        }
+
+        test_address = StacksAddress('SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7')
+
+        with (
+            patch.object(inquirer, 'get_balances', return_value=mock_response),
+            patch('rotkehlchen.inquirer.Inquirer.find_main_currency_price', return_value=FVal(1)),
+        ):
+            balances = manager.query_balances([test_address])
+
+            assert test_address in balances
+            assert A_STX in balances[test_address].assets
+            stx_balance = balances[test_address].assets[A_STX][DEFAULT_BALANCE_LABEL]
+            assert stx_balance.amount == FVal(100)
+            assert stx_balance.value == FVal(100)
+
+    def test_manager_query_transactions_stub(self) -> None:
+        """Test that query_transactions is a no-op (Phase 4 feature)."""
+        from unittest.mock import MagicMock
+
+        from rotkehlchen.chain.stacks.manager import StacksManager
+        from rotkehlchen.chain.stacks.node_inquirer import StacksInquirer
+        from rotkehlchen.types import Timestamp
+
+        mock_gm = MagicMock()
+        mock_db = MagicMock()
+        inquirer = StacksInquirer(greenlet_manager=mock_gm, database=mock_db)
+        manager = StacksManager(node_inquirer=inquirer)
+
+        test_address = StacksAddress('SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7')
+
+        # Should not raise, just log and return
+        manager.query_transactions(
+            addresses=[test_address],
+            from_timestamp=Timestamp(0),
+            to_timestamp=Timestamp(1000),
+        )
+
+
+class TestStacksBlockchainAccountsIntegration:
+    """Tests for BlockchainAccounts integration with Stacks."""
+
+    def test_blockchain_accounts_has_stx_field(self) -> None:
+        """Test that BlockchainAccounts has stx field."""
+        from rotkehlchen.chain.accounts import BlockchainAccounts
+
+        accounts = BlockchainAccounts()
+        assert hasattr(accounts, 'stx')
+        assert accounts.stx == ()
+
+    def test_blockchain_accounts_get_stacks(self) -> None:
+        """Test that BlockchainAccounts.get works for Stacks."""
+        from rotkehlchen.chain.accounts import BlockchainAccounts
+
+        test_address = StacksAddress('SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7')
+        accounts = BlockchainAccounts(stx=(test_address,))
+
+        result = accounts.get(SupportedBlockchain.STACKS)
+        assert result == (test_address,)
+
+    def test_blockchain_accounts_add_stacks(self) -> None:
+        """Test that BlockchainAccounts.add works for Stacks."""
+        from rotkehlchen.chain.accounts import BlockchainAccounts
+
+        accounts = BlockchainAccounts()
+        test_address = StacksAddress('SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7')
+
+        accounts.add(SupportedBlockchain.STACKS, test_address)
+        assert accounts.stx == (test_address,)
+
+    def test_blockchain_accounts_remove_stacks(self) -> None:
+        """Test that BlockchainAccounts.remove works for Stacks."""
+        from rotkehlchen.chain.accounts import BlockchainAccounts
+
+        test_address = StacksAddress('SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7')
+        accounts = BlockchainAccounts(stx=(test_address,))
+
+        accounts.remove(SupportedBlockchain.STACKS, test_address)
+        assert accounts.stx == ()
