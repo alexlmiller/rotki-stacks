@@ -106,6 +106,10 @@ function getRoutes(keyword: string): SearchItemWithoutValue[] {
       texts: [Routes.ACCOUNTS.text, Routes.ACCOUNTS_SOLANA.text],
     },
     {
+      ...Routes.ACCOUNTS_STACKS,
+      texts: [Routes.ACCOUNTS.text, Routes.ACCOUNTS_STACKS.text],
+    },
+    {
       ...Routes.ACCOUNTS_SUBSTRATE,
       texts: [Routes.ACCOUNTS.text, Routes.ACCOUNTS_SUBSTRATE.text],
     },
