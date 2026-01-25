@@ -744,10 +744,9 @@ CHAINID_TO_SUPPORTED_BLOCKCHAIN = {
 }
 NON_EVM_CHAINS = set(SupportedBlockchain) - set(SUPPORTED_BLOCKCHAIN_TO_CHAINID.keys())
 
-# Define these from the existing constants to avoid defining duplicate copies.
-# Will need changed if these grow in different ways.
-CHAINS_WITH_NODES_TYPE = CHAINS_WITH_TRANSACTION_DECODERS_TYPE
-CHAINS_WITH_NODES: tuple[CHAINS_WITH_NODES_TYPE, ...] = CHAINS_WITH_TRANSACTION_DECODERS
+# Chains with RPC node management (EVM + Solana). Stacks uses REST API, not RPC nodes.
+CHAINS_WITH_NODES_TYPE = EVM_CHAINS_WITH_TRANSACTIONS_TYPE | Literal[SupportedBlockchain.SOLANA]
+CHAINS_WITH_NODES: tuple[CHAINS_WITH_NODES_TYPE, ...] = EVM_CHAINS_WITH_TRANSACTIONS + (SupportedBlockchain.SOLANA,)
 
 CHAINS_WITH_CHAIN_MANAGER = SUPPORTED_EVM_CHAINS_TYPE | SUPPORTED_EVMLIKE_CHAINS_TYPE | SUPPORTED_BITCOIN_CHAINS_TYPE | SUPPORTED_SUBSTRATE_CHAINS_TYPE | Literal[SupportedBlockchain.SOLANA, SupportedBlockchain.STACKS]  # noqa: E501
 
