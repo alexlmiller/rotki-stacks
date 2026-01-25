@@ -11,6 +11,8 @@ from rotkehlchen.logging import RotkehlchenLogsAdapter
 
 from .constants import (
     CPT_POX,
+    POX_ALLOW_CONTRACT_CALLER,
+    POX_AUTHORIZATION_FUNCTIONS,
     POX_CONTRACTS,
     POX_DELEGATE_STACK_EXTEND,
     POX_DELEGATE_STACK_INCREASE,
@@ -58,8 +60,14 @@ def decode_pox_events(
     - delegate-stack-extend: Pool extends stacking for delegator
     - delegate-stack-increase: Pool increases stacked amount for delegator
 
+    Handles authorization (informational events):
+    - allow-contract-caller: Authorize a contract for stacking operations
+    - disallow-contract-caller: Revoke contract authorization
+
     Note: BTC rewards go to the user's Bitcoin address and are tracked
     via Rotki's Bitcoin wallet integration, not here.
+
+    Supports both pox-3 (historical) and pox-4 (current) contracts.
 
     Returns list of additional events to add.
     """
@@ -211,5 +219,33 @@ def decode_pox_events(
                 counterparty=CPT_POX,
             ))
             log.debug(f'Decoded PoX revoke delegation in {transaction.tx_id}')
+
+    # Handle authorization functions (informational events, no asset movement)
+    elif function_name in POX_AUTHORIZATION_FUNCTIONS:
+        if base_tools.is_tracked(transaction.sender_address):
+            contract_caller = transaction.get_principal_arg('caller')
+
+            if function_name == POX_ALLOW_CONTRACT_CALLER:
+                if contract_caller:
+                    notes = f'Authorize {contract_caller} for stacking operations'
+                else:
+                    notes = 'Authorize contract caller for stacking operations'
+            elif contract_caller:
+                notes = f'Revoke authorization for {contract_caller}'
+            else:
+                notes = 'Revoke contract caller stacking authorization'
+
+            additional_events.append(base_tools.make_event_next_index(
+                tx_ref=transaction.tx_id,
+                timestamp=transaction.block_time,
+                event_type=HistoryEventType.INFORMATIONAL,
+                event_subtype=HistoryEventSubType.NONE,
+                asset=A_STX,
+                amount=micro_stx_to_stx(0),
+                location_label=transaction.sender_address,
+                notes=notes,
+                counterparty=CPT_POX,
+            ))
+            log.debug(f'Decoded PoX authorization in {transaction.tx_id}: {notes}')
 
     return additional_events

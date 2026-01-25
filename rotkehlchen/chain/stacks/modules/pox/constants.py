@@ -5,9 +5,14 @@ from rotkehlchen.types import StacksAddress
 
 CPT_POX: Final = 'pox'
 
-# PoX-4 Contract Address (native stacking)
+# PoX Contract Addresses (native stacking)
+# pox-4 is the current active version
 POX4_CONTRACT: Final = StacksAddress(
     'SP000000000000000000002Q6VF78.pox-4',
+)
+# pox-3 for historical transaction support
+POX3_CONTRACT: Final = StacksAddress(
+    'SP000000000000000000002Q6VF78.pox-3',
 )
 
 # PoX Function Names - Solo stacking
@@ -23,6 +28,10 @@ POX_REVOKE_DELEGATE_STX: Final = 'revoke-delegate-stx'
 POX_DELEGATE_STACK_STX: Final = 'delegate-stack-stx'
 POX_DELEGATE_STACK_EXTEND: Final = 'delegate-stack-extend'
 POX_DELEGATE_STACK_INCREASE: Final = 'delegate-stack-increase'
+
+# PoX Function Names - Authorization
+POX_ALLOW_CONTRACT_CALLER: Final = 'allow-contract-caller'
+POX_DISALLOW_CONTRACT_CALLER: Final = 'disallow-contract-caller'
 
 # All stacking functions that lock/extend STX
 POX_LOCK_FUNCTIONS: Final = frozenset({
@@ -41,7 +50,14 @@ POX_NEEDS_EVENT_AMOUNT: Final = frozenset({
     POX_DELEGATE_STACK_EXTEND,
 })
 
-# All PoX contracts
+# Authorization functions (informational - no asset movement)
+POX_AUTHORIZATION_FUNCTIONS: Final = frozenset({
+    POX_ALLOW_CONTRACT_CALLER,
+    POX_DISALLOW_CONTRACT_CALLER,
+})
+
+# All PoX contracts (pox-3 and pox-4)
 POX_CONTRACTS: Final = frozenset({
+    POX3_CONTRACT,
     POX4_CONTRACT,
 })

@@ -26,15 +26,21 @@ from rotkehlchen.logging import RotkehlchenLogsAdapter
 from rotkehlchen.types import Location, StacksAddress, SupportedBlockchain
 
 from ..modules.alex.decoder import decode_alex_events, is_alex_transaction
+from ..modules.allbridge.decoder import decode_allbridge_events, is_allbridge_transaction
 from ..modules.bitflow.decoder import decode_bitflow_events, is_bitflow_transaction
 from ..modules.hermetica.decoder import decode_hermetica_events, is_hermetica_transaction
 from ..modules.pox.decoder import decode_pox_events, is_pox_transaction
 from ..modules.sbtc.decoder import decode_sbtc_events, is_sbtc_transaction
 from ..modules.sendmany.decoder import decode_sendmany_events, is_sendmany_transaction
+from ..modules.stacking_pools.decoder import (
+    decode_stacking_pool_events,
+    is_stacking_pool_transaction,
+)
 from ..modules.stackingdao.decoder import (
     decode_stackingdao_events,
     is_stackingdao_transaction,
 )
+from ..modules.usdcx.decoder import decode_usdcx_events, is_usdcx_transaction
 from ..modules.velar.decoder import decode_velar_events, is_velar_transaction
 from ..modules.zest.decoder import decode_zest_events, is_zest_transaction
 from .tools import StacksDecoderTools
@@ -335,6 +341,24 @@ class StacksTransactionDecoder(TransactionDecoder[StacksTransaction, StacksDecod
             )
             events.extend(additional)
 
+        # Allbridge bridge operations (aeUSDC, aeETH)
+        elif is_allbridge_transaction(transaction):
+            additional = decode_allbridge_events(
+                transaction=transaction,
+                base_tools=self.base,
+                existing_events=events,
+            )
+            events.extend(additional)
+
+        # Circle USDCx bridge operations
+        elif is_usdcx_transaction(transaction):
+            additional = decode_usdcx_events(
+                transaction=transaction,
+                base_tools=self.base,
+                existing_events=events,
+            )
+            events.extend(additional)
+
         # PoX stacking operations
         elif is_pox_transaction(transaction):
             additional = decode_pox_events(
@@ -347,6 +371,15 @@ class StacksTransactionDecoder(TransactionDecoder[StacksTransaction, StacksDecod
         # StackingDAO liquid staking operations
         elif is_stackingdao_transaction(transaction):
             additional = decode_stackingdao_events(
+                transaction=transaction,
+                base_tools=self.base,
+                existing_events=events,
+            )
+            events.extend(additional)
+
+        # Third-party stacking pools (Fastpool, Xverse, etc.)
+        elif is_stacking_pool_transaction(transaction):
+            additional = decode_stacking_pool_events(
                 transaction=transaction,
                 base_tools=self.base,
                 existing_events=events,

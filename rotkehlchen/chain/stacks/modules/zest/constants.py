@@ -5,7 +5,7 @@ from rotkehlchen.types import StacksAddress
 
 CPT_ZEST: Final = 'zest'
 
-# Zest Core Contracts
+# Zest Core Contracts (v1-0)
 ZEST_POOL_CONTRACT: Final = StacksAddress(
     'SP2VCQJGH7PHP2DJK7Z0V48AGBHQAW3R3ZW1QF4N.pool-v1-0',
 )
@@ -17,6 +17,20 @@ ZEST_SUPPLY_CONTRACT: Final = StacksAddress(
 )
 ZEST_LIQUIDATOR_CONTRACT: Final = StacksAddress(
     'SP2VCQJGH7PHP2DJK7Z0V48AGBHQAW3R3ZW1QF4N.liquidator-v1-0',
+)
+
+# Zest Core Contracts (v2-0-0) - current active version
+ZEST_POOL_V2_CONTRACT: Final = StacksAddress(
+    'SP2VCQJGH7PHP2DJK7Z0V48AGBHQAW3R3ZW1QF4N.pool-v2-0-0',
+)
+ZEST_BORROW_V2_CONTRACT: Final = StacksAddress(
+    'SP2VCQJGH7PHP2DJK7Z0V48AGBHQAW3R3ZW1QF4N.borrow-helper-v2-0-0',
+)
+ZEST_SUPPLY_V2_CONTRACT: Final = StacksAddress(
+    'SP2VCQJGH7PHP2DJK7Z0V48AGBHQAW3R3ZW1QF4N.supply-helper-v2-0-0',
+)
+ZEST_LIQUIDATOR_V2_CONTRACT: Final = StacksAddress(
+    'SP2VCQJGH7PHP2DJK7Z0V48AGBHQAW3R3ZW1QF4N.liquidator-v2-0-0',
 )
 
 # Function names for supply/borrow
@@ -46,10 +60,16 @@ ZEST_REPAY_FUNCTIONS: Final = frozenset({
     ZEST_REPAY,
 })
 
-# All Zest contracts
+# All Zest contracts (v1 and v2)
 ZEST_CONTRACTS: Final = frozenset({
+    # v1-0 contracts
     ZEST_POOL_CONTRACT,
     ZEST_BORROW_CONTRACT,
     ZEST_SUPPLY_CONTRACT,
     ZEST_LIQUIDATOR_CONTRACT,
+    # v2-0-0 contracts
+    ZEST_POOL_V2_CONTRACT,
+    ZEST_BORROW_V2_CONTRACT,
+    ZEST_SUPPLY_V2_CONTRACT,
+    ZEST_LIQUIDATOR_V2_CONTRACT,
 })
