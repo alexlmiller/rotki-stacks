@@ -623,6 +623,7 @@ class HistoryEventSchema(
         load_default=None,
     )
     customized_events_only = fields.Boolean(load_default=False)
+    virtual_events_only = fields.Boolean(load_default=False)
     identifiers = DelimitedOrNormalList(fields.Integer(
         validate=webargs.validate.Range(
                 min=0,
@@ -660,6 +661,12 @@ class HistoryEventSchema(
             raise ValidationError(
                 message=error_msg,
                 field_name='order_by_attributes',
+            )
+
+        if data['customized_events_only'] is True and data['virtual_events_only'] is True:
+            raise ValidationError(
+                message='Cannot filter by both customized and virtual events',
+                field_name='virtual_events_only',
             )
 
     @post_load
@@ -720,6 +727,7 @@ class HistoryEventSchema(
             'event_subtypes': data['event_subtypes'],
             'location': data['location'],
             'customized_events_only': data['customized_events_only'],
+            'virtual_events_only': data['virtual_events_only'],
             'identifiers': data['identifiers'],
             'notes_substring': data['notes_substring'],
         }
@@ -1663,6 +1671,7 @@ class ModifiableSettingsSchema(Schema):
     )
     auto_delete_calendar_entries = fields.Boolean(load_default=None)
     auto_create_calendar_reminders = fields.Boolean(load_default=None)
+    auto_create_profit_events = fields.Boolean(load_default=None)
     ask_user_upon_size_discrepancy = fields.Boolean(load_default=None)
     auto_detect_tokens = fields.Boolean(load_default=None)
     csv_export_delimiter = EmptyAsNoneStringField(load_default=None)
@@ -1757,6 +1766,7 @@ class ModifiableSettingsSchema(Schema):
             asset_movement_amount_tolerance=FVal(data['asset_movement_amount_tolerance']) if data['asset_movement_amount_tolerance'] is not None else None,  # noqa: E501
             asset_movement_time_range=data['asset_movement_time_range'],
             suppress_missing_key_msg_services=data['suppress_missing_key_msg_services'],
+            auto_create_profit_events=data['auto_create_profit_events'],
         )
 
 
