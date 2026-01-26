@@ -838,16 +838,16 @@ class StacksToken(CryptoAsset):
         if direct_field_initialization is True:
             return
 
-        resolved: StacksToken = AssetResolver().resolve_asset_to_class(
+        resolved = AssetResolver().resolve_asset_to_class(
             identifier=self.identifier,
             expected_type=StacksToken,
         )
         self._set_attributes(
             asset_type=AssetType.STACKS_TOKEN,
-            contract_id=resolved.contract_id,
-            token_kind=resolved.token_kind,
-            decimals=resolved.decimals,
-            protocol=resolved.protocol,
+            contract_id=resolved.contract_id,  # type: ignore[attr-defined]
+            token_kind=resolved.token_kind,  # type: ignore[attr-defined]
+            decimals=resolved.decimals,  # type: ignore[attr-defined]
+            protocol=resolved.protocol,  # type: ignore[attr-defined]
         )
 
     @classmethod

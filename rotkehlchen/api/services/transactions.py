@@ -68,6 +68,7 @@ if TYPE_CHECKING:
         ChecksumEvmAddress,
         EVMTxHash,
         SolanaAddress,
+        StacksAddress,
     )
 
 logger = logging.getLogger(__name__)
@@ -683,15 +684,16 @@ class TransactionsService:
             self,
             from_timestamp: Timestamp,
             to_timestamp: Timestamp,
-            address: ChecksumEvmAddress | SolanaAddress | None,
+            address: ChecksumEvmAddress | SolanaAddress | StacksAddress | None,
             blockchain: CHAINS_WITH_TRANSACTION_DECODERS_TYPE,
             query_for_range_fn: (
                 Callable[[ChecksumEvmAddress, Timestamp, Timestamp], list[EVMTxHash]] |
-                Callable[[SolanaAddress, Timestamp, Timestamp], list[Signature]]
+                Callable[[SolanaAddress, Timestamp, Timestamp], list[Signature]] |
+                Callable[[StacksAddress, Timestamp, Timestamp], list[str]]
             ),
     ) -> set[tuple[str, str]]:
         if address:
-            addresses_to_query: tuple[ChecksumEvmAddress | SolanaAddress, ...] = (address,)
+            addresses_to_query: tuple[ChecksumEvmAddress | SolanaAddress | StacksAddress, ...] = (address,)  # noqa: E501
         else:
             with self.rotkehlchen.data.db.conn.read_ctx() as cursor:
                 addresses_to_query = tuple(

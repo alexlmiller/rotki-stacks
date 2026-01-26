@@ -1,7 +1,6 @@
 use crate::blockchain::{
     parse_asset_identifier, AssetAddress, EvmInquirerManager, EvmNodeInquirer, SupportedBlockchain,
 };
-use serde_json;
 use crate::coingecko;
 use crate::globaldb;
 use alloy::{

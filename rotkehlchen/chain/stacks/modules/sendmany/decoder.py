@@ -72,9 +72,15 @@ def _extract_recipients_from_args(
 
             if recipient is not None and amount is not None:
                 try:
-                    recipients.append((str(recipient), int(amount)))
+                    if isinstance(amount, int):
+                        amount_int = amount
+                    elif isinstance(amount, str):
+                        amount_int = int(amount)
+                    else:
+                        continue  # Skip unsupported amount types
+                    recipients.append((str(recipient), amount_int))
                 except (ValueError, TypeError):
-                    log.debug(f'Failed to parse recipient {recipient} with amount {amount}')
+                    log.debug(f'Failed to parse recipient {recipient!r} with amount {amount!r}')
                     continue
 
     return recipients

@@ -479,7 +479,7 @@ class DBHistoryEvents:
     def delete_events_by_tx_ref(
             self,
             write_cursor: 'DBCursor',
-            tx_refs: Sequence[EVMTxHash | BTCTxId | Signature],
+            tx_refs: Sequence[EVMTxHash | BTCTxId | Signature | str],
             location: BLOCKCHAIN_LOCATIONS_TYPE,
             delete_customized: bool = False,
     ) -> None:

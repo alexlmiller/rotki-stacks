@@ -81,9 +81,9 @@ class TestStacksAddressValidation:
 
     def test_non_string_input(self) -> None:
         """Test that non-string inputs are rejected."""
-        assert not is_valid_stacks_address(None)  # type: ignore
-        assert not is_valid_stacks_address(12345)  # type: ignore
-        assert not is_valid_stacks_address(['SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7'])  # type: ignore
+        assert not is_valid_stacks_address(None)
+        assert not is_valid_stacks_address(12345)
+        assert not is_valid_stacks_address(['SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7'])
 
     def test_c32_alphabet_completeness(self) -> None:
         """Test that the c32 alphabet is correct."""
@@ -137,9 +137,9 @@ class TestStacksTypeRegistration:
         # We need to recursively extract all enum values
         from typing import Union, get_args, get_origin
 
-        def extract_literal_values(type_hint):
+        def extract_literal_values(type_hint: object) -> set[SupportedBlockchain]:
             """Recursively extract all values from nested Literal/Union types."""
-            values = set()
+            values: set[SupportedBlockchain] = set()
             origin = get_origin(type_hint)
             args = get_args(type_hint)
 
@@ -180,13 +180,13 @@ class TestStacksAddressbookEcosystem:
 
     def test_check_chain_ecosystem_stacks(self) -> None:
         """Test that Stacks addresses are detected as STACKS ecosystem."""
-        stacks_address = 'SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7'
+        stacks_address = StacksAddress('SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7')
         ecosystem = AddressbookEntry.check_chain_ecosystem(stacks_address)
         assert ecosystem == ChainType.STACKS
 
     def test_ecosystem_isolation(self) -> None:
         """Test that Stacks addresses don't match other ecosystems."""
-        stacks_address = 'SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7'
+        stacks_address = StacksAddress('SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7')
         ecosystem = AddressbookEntry.check_chain_ecosystem(stacks_address)
 
         # Should not be any other ecosystem

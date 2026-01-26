@@ -1694,6 +1694,14 @@ class DBHandler:
     ) -> list[SolanaAddress]:
         ...
 
+    @overload
+    def get_single_blockchain_addresses(
+            self,
+            cursor: 'DBCursor',
+            blockchain: Literal[SupportedBlockchain.STACKS],
+    ) -> list[StacksAddress]:
+        ...
+
     def get_single_blockchain_addresses(
             self,
             cursor: 'DBCursor',

@@ -289,7 +289,7 @@ class StacksTransactionDecoder(TransactionDecoder[StacksTransaction, StacksDecod
                     continue
 
                 # Calculate amount with proper decimals
-                decimals = token.resolve_to_crypto_asset().decimals or 0
+                decimals = getattr(token.resolve_to_crypto_asset(), 'decimals', None) or 0
                 amount = FVal(raw_amount) / (10 ** decimals)
                 symbol = token.resolve_to_asset_with_symbol().symbol
 
