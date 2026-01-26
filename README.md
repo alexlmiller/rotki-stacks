@@ -42,7 +42,7 @@
 > - **Stacking rewards** - PoX stacking and liquid staking tracking
 > - **Exchange integration** - STX from Coinbase, Binance, Kraken unified with on-chain balances
 >
-> **Status**: In active development. See [.claude/docs/stacks-integration-prd.md](.claude/docs/stacks-integration-prd.md) for the full roadmap.
+> **Status**: In active development. See [.claude/docs/stacks-integration-prd.md](.claude/docs/stacks-integration-prd.md) for the full roadmap and [.claude/docs/dev-environment.md](.claude/docs/dev-environment.md) for setup instructions.
 >
 > *Based on [rotki/rotki](https://github.com/rotki/rotki) - all upstream features remain available.*
 
