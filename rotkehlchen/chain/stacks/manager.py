@@ -16,7 +16,9 @@ from rotkehlchen.chain.stacks.transactions import StacksTransactions
 from rotkehlchen.constants import DEFAULT_BALANCE_LABEL
 from rotkehlchen.constants.assets import A_STX
 from rotkehlchen.constants.misc import ZERO
+from rotkehlchen.errors.asset import UnknownAsset, WrongAssetType
 from rotkehlchen.errors.misc import RemoteError
+from rotkehlchen.errors.serialization import DeserializationError
 from rotkehlchen.fval import FVal
 from rotkehlchen.inquirer import Inquirer
 from rotkehlchen.logging import RotkehlchenLogsAdapter
@@ -159,7 +161,7 @@ class StacksManager(ChainManagerWithTransactions[StacksAddress]):
                 log.warning(f'Invalid token ID format for {address}: {token_id}')
                 continue
 
-            contract_id = StacksAddress(contract_parts[0])
+            contract_id = contract_parts[0]  # Contract ID string, not StacksAddress
 
             try:
                 balance_raw = int(token_data.get('balance', '0'))
@@ -175,7 +177,7 @@ class StacksManager(ChainManagerWithTransactions[StacksAddress]):
                     userdb=self.database,
                     contract_id=contract_id,
                 )
-            except Exception as e:
+            except (RemoteError, DeserializationError, UnknownAsset, WrongAssetType) as e:
                 log.error(f'Failed to get/create token {contract_id} for {address}: {e}')
                 continue
 

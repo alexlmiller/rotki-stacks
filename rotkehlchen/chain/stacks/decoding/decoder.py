@@ -7,8 +7,11 @@ from rotkehlchen.assets.utils import get_or_create_stacks_token
 from rotkehlchen.chain.decoding.constants import CPT_GAS
 from rotkehlchen.chain.decoding.decoder import TransactionDecoder
 from rotkehlchen.chain.decoding.types import DecodingRulesBase
-from rotkehlchen.chain.evm.decoding.constants import OUTGOING_EVENT_TYPES
-from rotkehlchen.chain.stacks.constants import micro_stx_to_stx
+from rotkehlchen.chain.stacks.constants import (
+    OUTGOING_EVENT_TYPES,
+    get_all_stacks_counterparties,
+    micro_stx_to_stx,
+)
 from rotkehlchen.chain.stacks.types import StacksTransaction, StacksTxType
 from rotkehlchen.constants.assets import A_STX
 from rotkehlchen.constants.misc import ZERO
@@ -18,7 +21,9 @@ from rotkehlchen.db.filtering import (
 )
 from rotkehlchen.db.history_events import DBHistoryEvents
 from rotkehlchen.db.stackstx import DBStacksTx
+from rotkehlchen.errors.asset import UnknownAsset, WrongAssetType
 from rotkehlchen.errors.misc import RemoteError
+from rotkehlchen.errors.serialization import DeserializationError
 from rotkehlchen.fval import FVal
 from rotkehlchen.history.events.structures.stacks_event import StacksEvent
 from rotkehlchen.history.events.structures.types import HistoryEventSubType, HistoryEventType
@@ -97,7 +102,7 @@ class StacksTransactionDecoder(TransactionDecoder[StacksTransaction, StacksDecod
             tx_mappings_table='stacks_tx_mappings',
             chain_name=SupportedBlockchain.STACKS.name.lower(),
             value_asset=A_STX.resolve_to_asset_with_oracles(),
-            rules=StacksDecodingRules(all_counterparties=set()),
+            rules=StacksDecodingRules(all_counterparties=get_all_stacks_counterparties()),
             premium=premium,
             base_tools=base_tools,
             misc_counterparties=[],
@@ -276,7 +281,7 @@ class StacksTransactionDecoder(TransactionDecoder[StacksTransaction, StacksDecod
                         userdb=self.database,
                         contract_id=contract_id,
                     )
-                except Exception as e:
+                except (RemoteError, DeserializationError, UnknownAsset, WrongAssetType) as e:
                     log.error(
                         f'Failed to load SIP-10 token {contract_id} in transaction '
                         f'{transaction.tx_id} due to {e}',
@@ -483,23 +488,20 @@ class StacksTransactionDecoder(TransactionDecoder[StacksTransaction, StacksDecod
             Tuple of (fungible_token_events, stx_events)
         """
         try:
-            response = self.node_inquirer.api_client._make_request(
-                f'extended/v1/tx/{tx_id}',
-            )
-            if response and 'events' in response:
-                ft_events = []
-                stx_events = []
-                for event in response['events']:
-                    event_type = event.get('event_type')
-                    if event_type == 'fungible_token_asset':
-                        ft_events.append(event)
-                    elif event_type == 'stx_asset':
-                        stx_events.append(event)
-                return ft_events, stx_events
+            events = self.node_inquirer.api_client.get_transaction_events(tx_id)
         except RemoteError as e:
             log.error(f'Failed to fetch token transfers for {tx_id}: {e}')
+            return [], []
 
-        return [], []
+        ft_events = []
+        stx_events = []
+        for event in events:
+            event_type = event.get('event_type')
+            if event_type == 'fungible_token_asset':
+                ft_events.append(event)
+            elif event_type == 'stx_asset':
+                stx_events.append(event)
+        return ft_events, stx_events
 
     def _apply_protocol_decoders(
             self,

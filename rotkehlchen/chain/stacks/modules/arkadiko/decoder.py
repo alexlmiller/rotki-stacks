@@ -176,7 +176,7 @@ def _decode_arkadiko_liquidation(
                 event.event_type == HistoryEventType.SPEND and
                 event.event_subtype == HistoryEventSubType.NONE
             ):
-                event.event_type = HistoryEventType.LIQUIDATION
+                event.event_type = HistoryEventType.LOSS
                 event.event_subtype = HistoryEventSubType.LIQUIDATE
                 event.counterparty = CPT_ARKADIKO
                 symbol = event.asset.resolve_to_asset_with_symbol().symbol

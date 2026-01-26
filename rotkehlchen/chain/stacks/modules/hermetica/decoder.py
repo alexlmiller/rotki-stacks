@@ -65,7 +65,7 @@ def decode_hermetica_events(
 
         log.debug(f'Decoded Hermetica request in {transaction.tx_id}')
 
-    # Handle two-phase confirm mint (actual deposit with BRIDGE subtype)
+    # Handle two-phase confirm mint (deposit collateral, receive synthetic)
     elif function_name in HERMETICA_CONFIRM_MINT_FUNCTIONS:
         for event in existing_events:
             if (
@@ -74,7 +74,7 @@ def decode_hermetica_events(
                 event.location_label == transaction.sender_address
             ):
                 event.event_type = HistoryEventType.DEPOSIT
-                event.event_subtype = HistoryEventSubType.BRIDGE
+                event.event_subtype = HistoryEventSubType.DEPOSIT_ASSET
                 event.counterparty = CPT_HERMETICA
                 symbol = event.asset.resolve_to_asset_with_symbol().symbol
                 event.notes = f'Confirm mint: deposit {event.amount} {symbol} to Hermetica'
@@ -83,15 +83,15 @@ def decode_hermetica_events(
                 event.event_subtype == HistoryEventSubType.NONE and
                 event.location_label == transaction.sender_address
             ):
-                event.event_type = HistoryEventType.DEPOSIT
-                event.event_subtype = HistoryEventSubType.BRIDGE
+                event.event_type = HistoryEventType.RECEIVE
+                event.event_subtype = HistoryEventSubType.RECEIVE_WRAPPED
                 event.counterparty = CPT_HERMETICA
                 symbol = event.asset.resolve_to_asset_with_symbol().symbol
                 event.notes = f'Confirm mint: receive {event.amount} {symbol} from Hermetica'
 
         log.debug(f'Decoded Hermetica confirm mint in {transaction.tx_id}')
 
-    # Handle two-phase confirm redeem (actual withdrawal with BRIDGE subtype)
+    # Handle two-phase confirm redeem (return synthetic, receive collateral)
     elif function_name in HERMETICA_CONFIRM_REDEEM_FUNCTIONS:
         for event in existing_events:
             if (
@@ -99,8 +99,8 @@ def decode_hermetica_events(
                 event.event_subtype == HistoryEventSubType.NONE and
                 event.location_label == transaction.sender_address
             ):
-                event.event_type = HistoryEventType.WITHDRAWAL
-                event.event_subtype = HistoryEventSubType.BRIDGE
+                event.event_type = HistoryEventType.SPEND
+                event.event_subtype = HistoryEventSubType.RETURN_WRAPPED
                 event.counterparty = CPT_HERMETICA
                 symbol = event.asset.resolve_to_asset_with_symbol().symbol
                 event.notes = f'Confirm redeem: return {event.amount} {symbol} to Hermetica'
@@ -110,7 +110,7 @@ def decode_hermetica_events(
                 event.location_label == transaction.sender_address
             ):
                 event.event_type = HistoryEventType.WITHDRAWAL
-                event.event_subtype = HistoryEventSubType.BRIDGE
+                event.event_subtype = HistoryEventSubType.REMOVE_ASSET
                 event.counterparty = CPT_HERMETICA
                 symbol = event.asset.resolve_to_asset_with_symbol().symbol
                 event.notes = f'Confirm redeem: receive {event.amount} {symbol} from Hermetica'

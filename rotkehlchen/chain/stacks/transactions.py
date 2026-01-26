@@ -77,9 +77,7 @@ class StacksTransactions:
     def _fetch_transaction(self, tx_id: str) -> StacksTransaction | None:
         """Fetch a single transaction from the API."""
         try:
-            response = self.node_inquirer.api_client._make_request(
-                f'extended/v1/tx/{tx_id}',
-            )
+            response = self.node_inquirer.api_client.get_transaction(tx_id)
         except RemoteError:
             log.error(f'Failed to fetch Stacks transaction {tx_id}')
             return None

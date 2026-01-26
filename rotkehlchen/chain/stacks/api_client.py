@@ -1,6 +1,7 @@
 """Stacks API client for Hiro REST API."""
 import contextlib
 import logging
+import random
 from typing import TYPE_CHECKING, Any, Final
 
 import gevent
@@ -92,11 +93,13 @@ class StacksApiClient(ExternalServiceWithRecommendedApiKey):
                             backoff = int(retry_after) + 1
 
                     if attempt < MAX_RETRIES:
+                        jitter = random.uniform(0, 0.5)
+                        sleep_time = backoff + jitter
                         log.warning(
-                            f'Rate limited by Hiro API. Backing off {backoff} seconds... '
+                            f'Rate limited by Hiro API. Backing off {sleep_time:.2f} seconds... '
                             f'(attempt {attempt + 1}/{MAX_RETRIES + 1})',
                         )
-                        gevent.sleep(backoff)
+                        gevent.sleep(sleep_time)
                         backoff *= BACKOFF_MULTIPLIER
                         continue
                     raise RemoteError(
@@ -113,22 +116,26 @@ class StacksApiClient(ExternalServiceWithRecommendedApiKey):
             except requests.exceptions.Timeout as e:
                 last_error = e
                 if attempt < MAX_RETRIES:
+                    jitter = random.uniform(0, 0.5)
+                    sleep_time = backoff + jitter
                     log.warning(
-                        f'Hiro API request timed out. Retrying... '
+                        f'Hiro API request timed out. Retrying in {sleep_time:.2f}s... '
                         f'(attempt {attempt + 1}/{MAX_RETRIES + 1})',
                     )
-                    gevent.sleep(backoff)
+                    gevent.sleep(sleep_time)
                     backoff *= BACKOFF_MULTIPLIER
                     continue
 
             except requests.exceptions.RequestException as e:
                 last_error = e
                 if attempt < MAX_RETRIES:
+                    jitter = random.uniform(0, 0.5)
+                    sleep_time = backoff + jitter
                     log.warning(
-                        f'Hiro API request failed: {e}. Retrying... '
+                        f'Hiro API request failed: {e}. Retrying in {sleep_time:.2f}s... '
                         f'(attempt {attempt + 1}/{MAX_RETRIES + 1})',
                     )
-                    gevent.sleep(backoff)
+                    gevent.sleep(sleep_time)
                     backoff *= BACKOFF_MULTIPLIER
                     continue
 
@@ -183,3 +190,32 @@ class StacksApiClient(ExternalServiceWithRecommendedApiKey):
             f'extended/v1/address/{address}/transactions',
             params={'limit': limit, 'offset': offset},
         )
+
+    def get_transaction(self, tx_id: str) -> dict[str, Any]:
+        """Get a single transaction by its ID.
+
+        Args:
+            tx_id: The transaction ID (hash)
+
+        Returns:
+            Transaction data including events
+
+        Raises:
+            RemoteError: If the request fails
+        """
+        return self._make_request(f'extended/v1/tx/{tx_id}')
+
+    def get_transaction_events(self, tx_id: str) -> list[dict]:
+        """Get events for a transaction.
+
+        Args:
+            tx_id: The transaction ID (hash)
+
+        Returns:
+            List of events from the transaction
+
+        Raises:
+            RemoteError: If the request fails
+        """
+        response = self.get_transaction(tx_id)
+        return response.get('events', [])

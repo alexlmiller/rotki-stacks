@@ -143,15 +143,17 @@ def decode_zest_events(
                 event.event_type == HistoryEventType.SPEND and
                 event.event_subtype == HistoryEventSubType.NONE
             ):
-                event.event_type = HistoryEventType.LIQUIDATION
-                event.event_subtype = HistoryEventSubType.LIQUIDATE
                 event.counterparty = CPT_ZEST
                 symbol = event.asset.resolve_to_asset_with_symbol().symbol
                 if event.location_label == transaction.sender_address:
                     # Liquidator spending to repay borrower's debt
+                    event.event_type = HistoryEventType.SPEND
+                    event.event_subtype = HistoryEventSubType.LIQUIDATE
                     event.notes = f'Liquidate: pay {event.amount} {symbol} to cover debt on Zest'
                 else:
                     # Borrower losing collateral
+                    event.event_type = HistoryEventType.LOSS
+                    event.event_subtype = HistoryEventSubType.LIQUIDATE
                     event.notes = f'Liquidated: lost {event.amount} {symbol} collateral on Zest'
             elif (
                 event.event_type == HistoryEventType.RECEIVE and
@@ -159,7 +161,7 @@ def decode_zest_events(
                 event.location_label == transaction.sender_address
             ):
                 # Liquidator receives collateral
-                event.event_type = HistoryEventType.LIQUIDATION
+                event.event_type = HistoryEventType.RECEIVE
                 event.event_subtype = HistoryEventSubType.LIQUIDATE
                 event.counterparty = CPT_ZEST
                 symbol = event.asset.resolve_to_asset_with_symbol().symbol

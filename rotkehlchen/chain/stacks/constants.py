@@ -1,8 +1,12 @@
 """Stacks blockchain constants and configuration."""
 
-from typing import Final, NamedTuple
+from typing import TYPE_CHECKING, Final, NamedTuple
 
 from rotkehlchen.fval import FVal
+from rotkehlchen.history.events.structures.types import HistoryEventType
+
+if TYPE_CHECKING:
+    from rotkehlchen.chain.decoding.types import CounterpartyDetails
 
 # Hiro API configuration
 HIRO_API_BASE_URL: Final = 'https://api.mainnet.hiro.so'
@@ -321,21 +325,23 @@ CURATED_STACKS_TOKENS: Final[dict[str, StacksTokenMetadata]] = {
     # Bitflow LP Tokens
     # =====================================
     # Bitflow aeUSDC-USDh Stableswap LP
-    'SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR.stableswap-pool-aeusdc-usdh-v-1-2': StacksTokenMetadata(
-        name='Bitflow aeUSDC-USDh LP',
-        symbol='BF-aeUSDC-USDh',
-        decimals=6,
-        coingecko=None,
-        protocol='bitflow',
-    ),
+    'SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR.stableswap-pool-aeusdc-usdh-v-1-2':
+        StacksTokenMetadata(
+            name='Bitflow aeUSDC-USDh LP',
+            symbol='BF-aeUSDC-USDh',
+            decimals=6,
+            coingecko=None,
+            protocol='bitflow',
+        ),
     # Bitflow sBTC-pBTC Stableswap LP
-    'SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR.stableswap-pool-sbtc-pbtc-v-1-1': StacksTokenMetadata(
-        name='Bitflow sBTC-pBTC LP',
-        symbol='BF-sBTC-pBTC',
-        decimals=8,
-        coingecko=None,
-        protocol='bitflow',
-    ),
+    'SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR.stableswap-pool-sbtc-pbtc-v-1-1':
+        StacksTokenMetadata(
+            name='Bitflow sBTC-pBTC LP',
+            symbol='BF-sBTC-pBTC',
+            decimals=8,
+            coingecko=None,
+            protocol='bitflow',
+        ),
     # Bitflow STX-aeUSDC XYK LP
     'SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR.xyk-pool-stx-aeusdc-v-1-2': StacksTokenMetadata(
         name='Bitflow STX-aeUSDC LP',
@@ -404,7 +410,7 @@ CURATED_STACKS_TOKENS: Final[dict[str, StacksTokenMetadata]] = {
     # =====================================
     # Additional Meme/Community Tokens
     # =====================================
-    # Corgi (not Welsh)
+    # Corgi token (distinct from Welsh Corgi)
     'SP2EXJYQG612FXBH0J2800K2HHD3Z9P1J48WW39V6.corgi': StacksTokenMetadata(
         name='Corgi',
         symbol='CORGI',
@@ -484,14 +490,6 @@ CURATED_STACKS_TOKENS: Final[dict[str, StacksTokenMetadata]] = {
         coingecko=None,
         protocol='bitflow',
     ),
-    # Old stSTXBTC (v1)
-    'SP4SZE494VC2YC5JYG7AYFQ44F5Q4PYV7DVMDPBG.ststxbtc-token': StacksTokenMetadata(
-        name='Stacked STX BTC (v1)',
-        symbol='stSTXBTC',
-        decimals=6,
-        coingecko='stacking-dao-stacked-stacks-btc',
-        protocol='stackingdao',
-    ),
     # Bonding curve token example
     'SP1KNRNZET8ZC5Q9P6F1FFW8YQH45CKMNY132B36S.ned2gsk-bonding-curve': StacksTokenMetadata(
         name='Ned2GSK',
@@ -533,3 +531,41 @@ def micro_stx_to_stx(micro_stx: int) -> FVal:
         Amount in STX as FVal
     """
     return FVal(micro_stx) / (10**STX_DECIMALS)
+
+
+# Event types that represent outgoing transfers (used for note directionality)
+# Defined here to avoid dependency on EVM-specific constants
+OUTGOING_EVENT_TYPES: Final = frozenset({
+    HistoryEventType.SPEND,
+    HistoryEventType.TRANSFER,
+    HistoryEventType.DEPOSIT,
+})
+
+
+def get_all_stacks_counterparties() -> set['CounterpartyDetails']:
+    """Get all Stacks protocol counterparties for UI filtering.
+
+    Returns a set of CounterpartyDetails for all supported Stacks protocols.
+    This function avoids circular imports by importing at runtime.
+    """
+    from rotkehlchen.chain.decoding.types import CounterpartyDetails
+    return {
+        CounterpartyDetails(identifier='alex', label='ALEX', image='alex.svg'),
+        CounterpartyDetails(identifier='allbridge', label='Allbridge', image='allbridge.svg'),
+        CounterpartyDetails(identifier='arkadiko', label='Arkadiko', image='arkadiko.svg'),
+        CounterpartyDetails(identifier='bitflow', label='Bitflow', image='bitflow.svg'),
+        CounterpartyDetails(identifier='dual-stacking', label='Dual Stacking', image='stacks.svg'),
+        CounterpartyDetails(identifier='hermetica', label='Hermetica', image='hermetica.svg'),
+        CounterpartyDetails(identifier='pox', label='Proof of Transfer', image='stacks.svg'),
+        CounterpartyDetails(identifier='sbtc', label='sBTC', image='sbtc.png'),
+        CounterpartyDetails(identifier='send-many', label='Send Many', image='stacks.svg'),
+        CounterpartyDetails(
+            identifier='stacking-pools', label='Stacking Pools', image='stacks.svg',
+        ),
+        CounterpartyDetails(
+            identifier='stackingdao', label='StackingDAO', image='stackingdao.svg',
+        ),
+        CounterpartyDetails(identifier='usdcx', label='USDCx', image='usdc.svg'),
+        CounterpartyDetails(identifier='velar', label='Velar', image='velar.svg'),
+        CounterpartyDetails(identifier='zest', label='Zest', image='zest.svg'),
+    }
