@@ -9,10 +9,11 @@ import EthDepositEventForm from '@/modules/history/management/forms/EthDepositEv
 import EthWithdrawalEventForm from '@/modules/history/management/forms/EthWithdrawalEventForm.vue';
 import EvmEventForm from '@/modules/history/management/forms/EvmEventForm.vue';
 import EvmSwapEventForm from '@/modules/history/management/forms/EvmSwapEventForm.vue';
-import { EVM_EVENTS, isEvmTypeEvent, isSolanaTypeEvent, SOLANA_EVENTS } from '@/modules/history/management/forms/form-guards';
+import { EVM_EVENTS, isEvmTypeEvent, isSolanaTypeEvent, isStacksTypeEvent, SOLANA_EVENTS, STACKS_EVENTS } from '@/modules/history/management/forms/form-guards';
 import OnlineHistoryEventForm from '@/modules/history/management/forms/OnlineHistoryEventForm.vue';
 import SolanaEventForm from '@/modules/history/management/forms/SolanaEventForm.vue';
 import SolanaSwapEventForm from '@/modules/history/management/forms/SolanaSwapEventForm.vue';
+import StacksEventForm from '@/modules/history/management/forms/StacksEventForm.vue';
 import SwapEventForm from '@/modules/history/management/forms/SwapEventForm.vue';
 
 interface FormComponent {
@@ -50,7 +51,15 @@ const isSolanaGroupAdd = computed<boolean>(() => {
   return isSolanaTypeEvent(data.group.entryType);
 });
 
-const isGroupAdd = logicOr(isEvmGroupAdd, isSolanaGroupAdd);
+const isStacksGroupAdd = computed<boolean>(() => {
+  const data = props.data;
+  if (data.type !== 'group-add') {
+    return false;
+  }
+  return isStacksTypeEvent(data.group.entryType);
+});
+
+const isGroupAdd = logicOr(isEvmGroupAdd, isSolanaGroupAdd, isStacksGroupAdd);
 
 const historyEventEntryTypes = computed<HistoryEventEntryType[]>(() => {
   if (get(isEvmGroupAdd)) {
@@ -58,6 +67,9 @@ const historyEventEntryTypes = computed<HistoryEventEntryType[]>(() => {
   }
   else if (get(isSolanaGroupAdd)) {
     return [...SOLANA_EVENTS];
+  }
+  else if (get(isStacksGroupAdd)) {
+    return [...STACKS_EVENTS];
   }
   return Object.values(HistoryEventEntryType);
 });
@@ -72,6 +84,7 @@ const formComponents: Record<HistoryEventEntryType, Component> = {
   [HistoryEventEntryType.HISTORY_EVENT]: OnlineHistoryEventForm,
   [HistoryEventEntryType.SOLANA_EVENT]: SolanaEventForm,
   [HistoryEventEntryType.SOLANA_SWAP_EVENT]: SolanaSwapEventForm,
+  [HistoryEventEntryType.STACKS_EVENT]: StacksEventForm,
   [HistoryEventEntryType.SWAP_EVENT]: SwapEventForm,
 };
 

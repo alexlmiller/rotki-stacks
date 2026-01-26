@@ -22,6 +22,10 @@ const services = [
     name: 'helius',
   },
   {
+    component: defineAsyncComponent(() => import('@/components/settings/api-keys/external/HiroApiKey.vue')),
+    name: 'hiro',
+  },
+  {
     component: defineAsyncComponent(() => import('@/components/settings/api-keys/external/CryptoCompareApiKey.vue')),
     name: 'cryptocompare',
   },

@@ -30,6 +30,24 @@
 
 ---
 
+> ## 🟠 **Stacks Integration Fork**
+>
+> This fork adds first-class **Stacks blockchain** support to rotki. Built by [Stacks Labs](https://github.com/alexlmiller/rotki), it enables Bitcoin DeFi users to track their STX holdings, SIP-10 tokens, and protocol activity.
+>
+> ### Capabilities Added
+> - **Native STX tracking** - Balance queries and price feeds
+> - **SIP-10 token support** - sBTC, stSTX, USDh, ALEX, VELAR, and 50+ curated tokens
+> - **Transaction history** - Full decoding with human-readable event descriptions
+> - **Protocol support** - StackingDAO, Zest, Bitflow, Arkadiko, Hermetica, and more
+> - **Stacking rewards** - PoX stacking and liquid staking tracking
+> - **Exchange integration** - STX from Coinbase, Binance, Kraken unified with on-chain balances
+>
+> **Status**: In active development. See [docs/stacks-chain/stacks-integration-prd.md](docs/stacks-chain/stacks-integration-prd.md) for the full roadmap and [docs/stacks-chain/dev-environment.md](docs/stacks-chain/dev-environment.md) for setup instructions.
+>
+> *Based on [rotki/rotki](https://github.com/rotki/rotki) - all upstream features remain available.*
+
+---
+
 ## 📌 **Table of Contents**
 - [📖 Overview](#overview)
 - [✨ Features](#features)

@@ -4,7 +4,7 @@ from rotkehlchen.types import ChainID, TokenKind
 from rotkehlchen.utils.mixins.enums import DBCharEnumMixIn
 
 if TYPE_CHECKING:
-    from rotkehlchen.types import ChecksumEvmAddress, SolanaAddress, Timestamp
+    from rotkehlchen.types import ChecksumEvmAddress, SolanaAddress, StacksAddress, Timestamp
 
 
 class AssetType(DBCharEnumMixIn):
@@ -35,10 +35,11 @@ class AssetType(DBCharEnumMixIn):
     SOLANA_TOKEN = 25
     NFT = 26
     CUSTOM_ASSET = 27
+    STACKS_TOKEN = 28
 
     @staticmethod
     def is_crypto_asset(asset_type: 'AssetType') -> bool:
-        crypto_asset_types_values = set(range(4, 27))
+        crypto_asset_types_values = set(range(4, 29))  # includes STACKS_TOKEN = 28
         crypto_asset_types_values.add(2)  # include `OWN_CHAIN`
         return asset_type.value in crypto_asset_types_values
 
@@ -59,7 +60,7 @@ class AssetData(NamedTuple):
     started: Optional['Timestamp']
     forked: str | None
     swapped_for: str | None
-    address: 'ChecksumEvmAddress | SolanaAddress | None'
+    address: 'ChecksumEvmAddress | SolanaAddress | StacksAddress | None'
     chain_id: ChainID | None
     token_kind: TokenKind | None
     decimals: int | None

@@ -79,6 +79,10 @@ class NotSPLConformant(Exception):
     """An address is not conforming to the solana SPL token standard"""
 
 
+class NotStacks(Exception):
+    """An address is not conforming to the Stacks SIP-10 token standard"""
+
+
 class BlockchainQueryError(Exception):
     """Raises when there are problems querying a blockchain node.
 

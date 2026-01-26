@@ -1,5 +1,5 @@
 import type { ComputedRef } from 'vue';
-import { type AssetInfo, getAddressFromEvmIdentifier, isEvmIdentifier } from '@rotki/common';
+import { type AssetInfo, getAddressFromEvmIdentifier, getContractFromStacksIdentifier, isEvmIdentifier, isStacksTokenIdentifier } from '@rotki/common';
 import { useGeneralSettingsStore } from '@/store/settings/general';
 import { CUSTOM_ASSET } from '@/types/asset';
 
@@ -23,6 +23,12 @@ function getAssetNameFallback(id: string): string {
   if (isEvmIdentifier(id)) {
     const address = getAddressFromEvmIdentifier(id);
     return `EVM Token: ${address}`;
+  }
+  if (isStacksTokenIdentifier(id)) {
+    const contract = getContractFromStacksIdentifier(id);
+    // Truncate long contract IDs for display
+    const displayContract = contract.length > 20 ? `${contract.slice(0, 20)}...` : contract;
+    return `Stacks Token: ${displayContract}`;
   }
   return '';
 }

@@ -16,6 +16,7 @@ from rotkehlchen.assets.asset import (
     EvmToken,
     Nft,
     SolanaToken,
+    StacksToken,
     UnderlyingToken,
 )
 from rotkehlchen.assets.ignored_assets_handling import IgnoredAssetsHandling
@@ -51,6 +52,7 @@ from rotkehlchen.types import (
     LocationAssetMappingUpdateEntry,
     Price,
     SolanaAddress,
+    StacksAddress,
     Timestamp,
     TokenKind,
 )
@@ -81,15 +83,16 @@ FROM assets LEFT JOIN common_asset_details on assets.identifier=common_asset_det
 LEFT JOIN evm_tokens ON evm_tokens.identifier=assets.identifier
 LEFT JOIN custom_assets ON custom_assets.identifier=assets.identifier
 LEFT JOIN solana_tokens ON solana_tokens.identifier=assets.identifier
+LEFT JOIN stacks_tokens ON stacks_tokens.identifier=assets.identifier
 """
 
 
 ALL_ASSETS_TABLES_QUERY = """
-SELECT assets.identifier, name, symbol, chain, assets.type, custom_assets.type, evm_tokens.address, solana_tokens.address """ + _ALL_ASSETS_TABLES_JOINS  # noqa: E501
+SELECT assets.identifier, name, symbol, chain, assets.type, custom_assets.type, evm_tokens.address, solana_tokens.address, stacks_tokens.contract_id """ + _ALL_ASSETS_TABLES_JOINS  # noqa: E501
 
 
 ALL_ASSETS_TABLES_QUERY_WITH_COLLECTIONS = (
-    'SELECT assets.identifier, assets.name, common_asset_details.symbol, chain, assets.type, custom_assets.type, collection_id, asset_collections.name, asset_collections.symbol, asset_collections.main_asset, evm_tokens.protocol, common_asset_details.coingecko, common_asset_details.cryptocompare, solana_tokens.protocol' +  # noqa: E501
+    'SELECT assets.identifier, assets.name, common_asset_details.symbol, chain, assets.type, custom_assets.type, collection_id, asset_collections.name, asset_collections.symbol, asset_collections.main_asset, evm_tokens.protocol, common_asset_details.coingecko, common_asset_details.cryptocompare, solana_tokens.protocol, stacks_tokens.protocol' +  # noqa: E501
     _ALL_ASSETS_TABLES_JOINS +
     'LEFT JOIN multiasset_mappings ON assets.identifier=multiasset_mappings.asset LEFT JOIN asset_collections ON multiasset_mappings.collection_id=asset_collections.id'  # noqa: E501
 )
@@ -251,6 +254,9 @@ class GlobalDBHandler:
                     elif asset.is_solana_token():
                         asset = cast('SolanaToken', asset)
                         GlobalDBHandler.add_solana_token_data(write_cursor, asset)
+                    elif asset.is_stacks_token():
+                        asset = cast('StacksToken', asset)
+                        GlobalDBHandler.add_stacks_token_data(write_cursor, asset)
                     else:
                         asset = cast('CryptoAsset', asset)
 
@@ -293,18 +299,19 @@ class GlobalDBHandler:
         prepared_filter_query, bindings = filter_query.prepare(with_pagination=False)
         parent_query = """
         SELECT A.identifier AS identifier, A.type,
-        COALESCE(B.address, S.address) AS address,
-        COALESCE(B.decimals, S.decimals) AS decimals,
+        COALESCE(B.address, S.address, ST.contract_id) AS address,
+        COALESCE(B.decimals, S.decimals, ST.decimals) AS decimals,
         A.name, C.symbol, C.started, C.forked, C.swapped_for, C.coingecko, C.cryptocompare,
-        COALESCE(B.protocol, S.protocol) AS protocol,
+        COALESCE(B.protocol, S.protocol, ST.protocol) AS protocol,
         B.chain,
-        COALESCE(B.token_kind, S.token_kind) AS token_kind,
+        COALESCE(B.token_kind, S.token_kind, ST.token_kind) AS token_kind,
         D.notes, D.type AS custom_asset_type
         FROM assets as A
         LEFT JOIN common_asset_details AS C ON C.identifier = A.identifier
         LEFT JOIN evm_tokens as B ON B.identifier = A.identifier
         LEFT JOIN custom_assets as D ON D.identifier = A.identifier
         LEFT JOIN solana_tokens as S ON S.identifier = A.identifier
+        LEFT JOIN stacks_tokens as ST ON ST.identifier = A.identifier
         """
         query = f'SELECT * FROM ({parent_query}) {prepared_filter_query}'
         should_skip = filter_query.ignored_assets_handling.get_should_skip_handler()
@@ -358,6 +365,14 @@ class GlobalDBHandler:
                         'protocol': entry[11],
                         'token_kind': TokenKind.deserialize_solana_from_db(entry[13]).serialize(),
                         'address': entry[2],
+                        'decimals': entry[3],
+                    })
+                    data.update(common_data)
+                elif asset_type == AssetType.STACKS_TOKEN:
+                    data.update({
+                        'protocol': entry[11],
+                        'token_kind': TokenKind.deserialize_stacks_from_db(entry[13]).serialize(),
+                        'contract_id': entry[2],
                         'decimals': entry[3],
                     })
                     data.update(common_data)
@@ -450,7 +465,7 @@ class GlobalDBHandler:
                             'symbol': entry[8],
                             'main_asset': entry[9],
                         }
-                if entry[10] == SPAM_PROTOCOL or entry[13] == SPAM_PROTOCOL:
+                if entry[10] == SPAM_PROTOCOL or entry[13] == SPAM_PROTOCOL or entry[14] == SPAM_PROTOCOL:  # noqa: E501
                     result[entry[0]].update({'is_spam': True})
                 if entry[11] is not None:
                     result[entry[0]].update({'coingecko': entry[11]})
@@ -546,11 +561,14 @@ class GlobalDBHandler:
         SELECT A.identifier, A.type, S.address, S.decimals, A.name, C.symbol, C.started, null, C.swapped_for, C.coingecko, C.cryptocompare, S.protocol, null, S.token_kind FROM assets as A JOIN solana_tokens as S
         ON S.identifier = A.identifier JOIN common_asset_details AS C ON C.identifier = S.identifier WHERE A.type = '{AssetType.SOLANA_TOKEN.serialize_for_db()}' {specific_ids_query}
         UNION ALL
+        SELECT A.identifier, A.type, ST.contract_id, ST.decimals, A.name, C.symbol, C.started, null, C.swapped_for, C.coingecko, C.cryptocompare, ST.protocol, null, ST.token_kind FROM assets as A JOIN stacks_tokens as ST
+        ON ST.identifier = A.identifier JOIN common_asset_details AS C ON C.identifier = ST.identifier WHERE A.type = '{AssetType.STACKS_TOKEN.serialize_for_db()}' {specific_ids_query}
+        UNION ALL
         SELECT A.identifier, A.type, null, null, A.name, B.symbol,  B.started, B.forked, B.swapped_for, B.coingecko, B.cryptocompare, null, null, null from assets as A JOIN common_asset_details as B
-        ON B.identifier = A.identifier WHERE A.type NOT IN ('{AssetType.EVM_TOKEN.serialize_for_db()}', '{AssetType.SOLANA_TOKEN.serialize_for_db()}') {specific_ids_query};
+        ON B.identifier = A.identifier WHERE A.type NOT IN ('{AssetType.EVM_TOKEN.serialize_for_db()}', '{AssetType.SOLANA_TOKEN.serialize_for_db()}', '{AssetType.STACKS_TOKEN.serialize_for_db()}') {specific_ids_query};
         """  # noqa: E501
         if specific_ids is not None:
-            bindings = (*specific_ids, *specific_ids, *specific_ids)
+            bindings = (*specific_ids, *specific_ids, *specific_ids, *specific_ids)
         else:
             bindings = ()
 
@@ -558,7 +576,7 @@ class GlobalDBHandler:
             cursor.execute(querystr, bindings)
             for entry in cursor:
                 asset_type = AssetType.deserialize_from_db(entry[1])
-                address: ChecksumEvmAddress | SolanaAddress | None
+                address: ChecksumEvmAddress | SolanaAddress | StacksAddress | None
                 token_kind: TokenKind | None
                 if asset_type == AssetType.EVM_TOKEN:
                     address = string_to_evm_address(entry[2])
@@ -568,6 +586,10 @@ class GlobalDBHandler:
                     address = SolanaAddress(entry[2])
                     chain_id = None
                     token_kind = TokenKind.deserialize_solana_from_db(entry[13])
+                elif asset_type == AssetType.STACKS_TOKEN:
+                    address = StacksAddress(entry[2])
+                    chain_id = None
+                    token_kind = TokenKind.deserialize_stacks_from_db(entry[13])
                 else:
                     address, chain_id, token_kind = None, None, None
                 data = AssetData(
@@ -643,6 +665,8 @@ class GlobalDBHandler:
                 query = 'SELECT decimals, protocol, address, token_kind, chain from evm_tokens WHERE identifier=?'  # noqa: E501
             elif asset_type == AssetType.SOLANA_TOKEN:
                 query = 'SELECT decimals, protocol, address, token_kind, NULL from solana_tokens WHERE identifier=?'  # noqa: E501
+            elif asset_type == AssetType.STACKS_TOKEN:
+                query = 'SELECT decimals, protocol, contract_id, token_kind, NULL from stacks_tokens WHERE identifier=?'  # noqa: E501
 
             if query is not None:
                 if (token_result := cursor.execute(query, (saved_identifier,)).fetchone()) is None:
@@ -1162,11 +1186,30 @@ class GlobalDBHandler:
         )
 
     @staticmethod
+    def add_stacks_token_data(write_cursor: DBCursor, entry: 'StacksToken') -> None:
+        """Adds stacks token specific information into the global DB
+
+        May raise InputError if the token already exists
+        """
+        GlobalDBHandler._add_token_data(
+            write_cursor=write_cursor,
+            query='INSERT INTO stacks_tokens (identifier, token_kind, contract_id, decimals, protocol) VALUES (?,?,?,?,?)',  # noqa: E501
+            bindings=(
+                entry.identifier,
+                entry.token_kind.serialize_for_db(),
+                entry.contract_id,
+                entry.decimals,
+                entry.protocol,
+            ),
+            token_type='stacks',
+        )
+
+    @staticmethod
     def _add_token_data(
             write_cursor: 'DBCursor',
             query: str,
             bindings: tuple,
-            token_type: Literal['evm', 'solana'],
+            token_type: Literal['evm', 'solana', 'stacks'],
             post_insert_callback: Callable | None = None,
     ) -> None:
         """Generic function to add token-specific data to the global DB"""
@@ -1255,11 +1298,36 @@ class GlobalDBHandler:
         )
 
     @staticmethod
+    def edit_stacks_token(entry: StacksToken) -> str:
+        """Edits a Stacks token entry in the DB
+        May raise:
+        - InputError if there is an error during updating
+
+        Returns the token's rotki identifier and clears the cache of the asset resolver
+        """
+        return GlobalDBHandler._edit_token(
+            entry=entry,
+            token_specific_update_callback=lambda _write_cursor, _entry: _write_cursor.execute(
+                'UPDATE stacks_tokens SET token_kind=?, contract_id=?, decimals=?, '
+                'protocol=? WHERE identifier=?',
+                (
+                    _entry.token_kind.serialize_for_db(),
+                    _entry.contract_id,
+                    _entry.decimals,
+                    _entry.protocol,
+                    _entry.identifier,
+                ),
+            ),
+            address=entry.contract_id,
+            check_rowcount=True,
+        )
+
+    @staticmethod
     def _edit_token(
-            entry: SolanaToken | EvmToken,
+            entry: SolanaToken | EvmToken | StacksToken,
             check_rowcount: bool,
             token_specific_update_callback: Callable,
-            address: SolanaAddress | ChecksumEvmAddress | None,
+            address: SolanaAddress | ChecksumEvmAddress | StacksAddress | None,
     ) -> str:
         """Generic token editing function that handles the common pattern."""
         try:
@@ -1423,6 +1491,7 @@ class GlobalDBHandler:
         extra_check_evm = ''
         evm_query_list: list[int | str] = [evm_token_type, symbol]
         solana_query_list: list[int | str] = [AssetType.SOLANA_TOKEN.serialize_for_db(), symbol]
+        stacks_query_list: list[int | str] = [AssetType.STACKS_TOKEN.serialize_for_db(), symbol]
         if chain_id is not None:
             extra_check_evm += ' AND B.chain=? '
             evm_query_list.append(chain_id.serialize_for_db())
@@ -1432,6 +1501,7 @@ class GlobalDBHandler:
             evm_token_type,
             AssetType.CUSTOM_ASSET.serialize_for_db(),
             AssetType.SOLANA_TOKEN.serialize_for_db(),
+            AssetType.STACKS_TOKEN.serialize_for_db(),
             symbol,
         ]
         if asset_type is not None:
@@ -1443,14 +1513,20 @@ class GlobalDBHandler:
         ON B.identifier = A.identifier JOIN common_asset_details AS C ON C.identifier = B.identifier WHERE A.type = ? AND C.symbol = ? COLLATE NOCASE{extra_check_evm}
         UNION ALL
         SELECT A.identifier, A.type, null, null, A.name, B.symbol, B.started, B.forked, B.swapped_for, B.coingecko, B.cryptocompare, null, null, null, null, null from assets as A JOIN common_asset_details as B
-        ON B.identifier = A.identifier WHERE A.type NOT IN (?, ?, ?) AND B.symbol = ? COLLATE NOCASE{extra_check_common}
+        ON B.identifier = A.identifier WHERE A.type NOT IN (?, ?, ?, ?) AND B.symbol = ? COLLATE NOCASE{extra_check_common}
         UNION ALL
         SELECT A.identifier, A.type, B.address, B.decimals, A.name, C.symbol, C.started, null, C.swapped_for, C.coingecko, C.cryptocompare, B.protocol, null, B.token_kind, null, null from assets as A JOIN solana_tokens as B
+        ON B.identifier = A.identifier JOIN common_asset_details AS C ON C.identifier = B.identifier WHERE A.type = ? AND C.symbol = ? COLLATE NOCASE
+        UNION ALL
+        SELECT A.identifier, A.type, B.contract_id, B.decimals, A.name, C.symbol, C.started, null, C.swapped_for, C.coingecko, C.cryptocompare, B.protocol, null, B.token_kind, null, null from assets as A JOIN stacks_tokens as B
         ON B.identifier = A.identifier JOIN common_asset_details AS C ON C.identifier = B.identifier WHERE A.type = ? AND C.symbol = ? COLLATE NOCASE
         """  # noqa: E501
         assets = []
         with GlobalDBHandler().conn.read_ctx() as cursor:
-            cursor.execute(querystr, evm_query_list + common_query_list + solana_query_list)
+            cursor.execute(
+                querystr,
+                evm_query_list + common_query_list + solana_query_list + stacks_query_list,
+            )
             for entry in cursor.fetchall():
                 asset_type = AssetType.deserialize_from_db(entry[1])
                 underlying_tokens: list[UnderlyingToken] | None = None
@@ -2088,8 +2164,11 @@ class GlobalDBHandler:
         SELECT A.identifier, A.type, B.address, B.decimals, A.name, C.symbol, C.started, null, C.swapped_for, C.coingecko, C.cryptocompare, B.protocol, null, B.token_kind, null, null FROM assets as A JOIN solana_tokens as B
         ON B.identifier = A.identifier JOIN common_asset_details AS C ON C.identifier = B.identifier WHERE A.type = ? AND A.identifier = ?
         UNION ALL
+        SELECT A.identifier, A.type, B.contract_id, B.decimals, A.name, C.symbol, C.started, null, C.swapped_for, C.coingecko, C.cryptocompare, B.protocol, null, B.token_kind, null, null FROM assets as A JOIN stacks_tokens as B
+        ON B.identifier = A.identifier JOIN common_asset_details AS C ON C.identifier = B.identifier WHERE A.type = ? AND A.identifier = ?
+        UNION ALL
         SELECT A.identifier, A.type, null, null, A.name, B.symbol, B.started, B.forked, B.swapped_for, B.coingecko, B.cryptocompare, null, null, null, null, null from assets as A JOIN common_asset_details as B
-        ON B.identifier = A.identifier WHERE A.type != ? AND A.type != ? AND A.identifier = ?
+        ON B.identifier = A.identifier WHERE A.type != ? AND A.type != ? AND A.type != ? AND A.identifier = ?
         UNION ALL
         SELECT A.identifier, A.type, null, null, A.name, null, null, null, null, null, null, null, null, null, B.notes, B.type FROM assets AS A JOIN custom_assets AS B on A.identifier=B.identifier WHERE A.identifier = ?
         """  # noqa: E501
@@ -2102,8 +2181,11 @@ class GlobalDBHandler:
                     identifier,
                     AssetType.SOLANA_TOKEN.serialize_for_db(),
                     identifier,
+                    AssetType.STACKS_TOKEN.serialize_for_db(),
+                    identifier,
                     AssetType.EVM_TOKEN.serialize_for_db(),
                     AssetType.CUSTOM_ASSET.serialize_for_db(),
+                    AssetType.STACKS_TOKEN.serialize_for_db(),
                     identifier,
                     identifier,
                 ),
@@ -2154,6 +2236,8 @@ class GlobalDBHandler:
             self.edit_evm_token(cast('EvmToken', asset))
         elif asset.asset_type == AssetType.SOLANA_TOKEN:
             self.edit_solana_token(cast('SolanaToken', asset))
+        elif asset.asset_type == AssetType.STACKS_TOKEN:
+            self.edit_stacks_token(cast('StacksToken', asset))
         else:
             self.edit_user_asset(cast('CryptoAsset', asset))
 

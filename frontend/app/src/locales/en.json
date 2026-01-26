@@ -2052,6 +2052,7 @@
         "bitcoin": "Bitcoin Address",
         "evm": "EVM Address",
         "solana": "Solana Address",
+        "stacks": "Stacks Address",
         "substrate": "Substrate Address"
       },
       "title": "blockchain"
@@ -2738,6 +2739,11 @@
       "description": "Recommended for Solana to query transaction data without the heavy rate limits of public RPCs.",
       "hint": "Enter your Helius API key",
       "title": "Helius"
+    },
+    "hiro": {
+      "description": "Recommended for Stacks blockchain to avoid rate limits when querying transactions and balances.",
+      "hint": "Enter your Hiro API key",
+      "title": "Hiro"
     },
     "loopring": {
       "description": "Used to query balances in Loopring. This API key will only be able to query the account that generated this key.",
@@ -3908,6 +3914,7 @@
       "bitcoin": "Bitcoin @:navigation_menu.accounts",
       "evm": "EVM @:navigation_menu.accounts",
       "solana": "Solana @:navigation_menu.accounts",
+      "stacks": "Stacks @:navigation_menu.accounts",
       "substrate": "Substrate @:navigation_menu.accounts"
     },
     "api_keys": "API Keys",
@@ -5447,6 +5454,12 @@
           "validation": {
             "non_empty": "The tx hash field cannot be empty.",
             "valid": "The tx hash is invalid, fill it with valid tx hash"
+          }
+        },
+        "tx_id": {
+          "validation": {
+            "non_empty": "The transaction ID field cannot be empty.",
+            "valid": "The transaction ID is invalid, fill it with a valid Stacks transaction ID"
           }
         },
         "unique_id": {

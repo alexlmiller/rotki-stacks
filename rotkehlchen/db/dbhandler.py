@@ -149,6 +149,7 @@ from rotkehlchen.types import (
     Location,
     PurgeableModuleName,
     SolanaAddress,
+    StacksAddress,
     SupportedBlockchain,
     Timestamp,
     UserNote,
@@ -1693,6 +1694,14 @@ class DBHandler:
     ) -> list[SolanaAddress]:
         ...
 
+    @overload
+    def get_single_blockchain_addresses(
+            self,
+            cursor: 'DBCursor',
+            blockchain: Literal[SupportedBlockchain.STACKS],
+    ) -> list[StacksAddress]:
+        ...
+
     def get_single_blockchain_addresses(
             self,
             cursor: 'DBCursor',
@@ -2279,7 +2288,7 @@ class DBHandler:
             tuple_type: DBTupleType,
             query: str,
             entry: tuple[Any, ...],
-            relevant_address: SolanaAddress | ChecksumEvmAddress | None,
+            relevant_address: SolanaAddress | ChecksumEvmAddress | StacksAddress | None,
     ) -> int | None:
         """Helper to write an entry of a tuple type and handle address mapping"""
         tx_id = None
@@ -2297,6 +2306,12 @@ class DBHandler:
                     (entry[4],),  # signature is the 5th element (index 4) in the entry tuple
                 ).fetchone()[0]
                 mapping_table = 'solanatx_address_mappings'
+            elif tuple_type == 'stacks_transaction':
+                tx_id = write_cursor.execute(
+                    'SELECT identifier FROM stacks_transactions WHERE tx_id=?',
+                    (entry[0],),  # tx_id is the 1st element (index 0) in the entry tuple
+                ).fetchone()[0]
+                mapping_table = 'stackstx_address_mappings'
             elif tuple_type == 'solana_instruction':
                 return write_cursor.lastrowid  # return the auto-generated instruction ID
             else:

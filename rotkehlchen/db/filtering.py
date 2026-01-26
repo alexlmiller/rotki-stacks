@@ -44,6 +44,7 @@ from rotkehlchen.types import (
     OptionalBlockchainAddress,
     OptionalChainAddress,
     SolanaAddress,
+    StacksAddress,
     SupportedBlockchain,
     Timestamp,
 )
@@ -1286,6 +1287,114 @@ class SolanaEventFilterQuery(HistoryEventWithCounterpartyFilterQuery):
         ))
 
 
+class StacksEventFilterQuery(HistoryEventWithCounterpartyFilterQuery):
+    @classmethod
+    def make(  # type: ignore[override]
+            cls,
+            and_op: bool = True,
+            order_by_rules: list[tuple[str, bool]] | None = None,
+            limit: int | None = None,
+            offset: int | None = None,
+            from_ts: Timestamp | None = None,
+            to_ts: Timestamp | None = None,
+            assets: tuple[Asset, ...] | None = None,
+            event_types: list[HistoryEventType] | None = None,
+            event_subtypes: list[HistoryEventSubType] | None = None,
+            type_and_subtype_combinations: Iterable[tuple[HistoryEventType, HistoryEventSubType]] | None = None,  # noqa: E501
+            exclude_subtypes: list[HistoryEventSubType] | None = None,
+            location: Location | None = None,
+            location_labels: list[str] | None = None,
+            excluded_locations: list[Location] | None = None,
+            ignored_ids: list[str] | None = None,
+            null_columns: list[str] | None = None,
+            identifiers: list[int] | None = None,
+            group_identifiers: list[str] | None = None,
+            entry_types: IncludeExcludeFilterData | None = None,
+            exclude_ignored_assets: bool = False,
+            customized_events_only: bool = False,
+            notes_substring: str | None = None,
+            tx_ids: list[str] | None = None,
+            counterparties: list[str] | None = None,
+            addresses: list[StacksAddress] | None = None,
+    ) -> Self:
+        if entry_types is None:
+            entry_types = IncludeExcludeFilterData(values=[
+                HistoryBaseEntryType.STACKS_EVENT,
+            ])
+
+        filter_query = super().make(
+            and_op=and_op,
+            order_by_rules=order_by_rules,
+            limit=limit,
+            offset=offset,
+            from_ts=from_ts,
+            to_ts=to_ts,
+            assets=assets,
+            event_types=event_types,
+            event_subtypes=event_subtypes,
+            type_and_subtype_combinations=type_and_subtype_combinations,
+            exclude_subtypes=exclude_subtypes,
+            location=location,
+            location_labels=location_labels,
+            excluded_locations=excluded_locations,
+            ignored_ids=ignored_ids,
+            null_columns=null_columns,
+            identifiers=identifiers,
+            group_identifiers=group_identifiers,
+            entry_types=entry_types,
+            exclude_ignored_assets=exclude_ignored_assets,
+            customized_events_only=customized_events_only,
+            notes_substring=notes_substring,
+            counterparties=counterparties,
+        )
+
+        if tx_ids is not None:
+            filter_query.filters.append(DBMultiStringFilter(
+                and_op=True,
+                column='tx_ref',
+                values=tx_ids,
+                operator='IN',
+            ))
+
+        if addresses is not None:
+            filter_query.filters.append(DBMultiStringFilter(
+                and_op=True,
+                column='address',
+                values=addresses,
+                operator='IN',
+            ))
+
+        return filter_query
+
+    @staticmethod
+    def get_join_query() -> str:
+        return EVENTS_WITH_COUNTERPARTY_JOIN
+
+    @staticmethod
+    def get_columns() -> str:
+        return f'{HISTORY_BASE_ENTRY_FIELDS}, {CHAIN_EVENT_FIELDS}'
+
+    @staticmethod
+    def match_location_label(filters: list[DBFilter], labels: list[str]) -> None:
+        """Check if labels match either location_label or address fields.
+        In Stacks events, addresses can appear in both fields, so we need to check both.
+        """
+        filters.append(DBNestedFilter(
+            and_op=False,
+            filters=[DBMultiStringFilter(
+                and_op=True,
+                column='location_label',
+                values=labels,
+                operator='IN',
+            ), DBMultiStringFilter(
+                and_op=True,
+                column='address',
+                values=labels,
+                operator='IN',
+            )],
+        ))
+
+
 class EvmEventFilterQuery(HistoryEventWithCounterpartyFilterQuery):
     @classmethod
     def make(  # type: ignore[override]
@@ -2428,6 +2537,77 @@ class SolanaTransactionsFilterQuery(DBFilterQuery, FilterWithTimestamp):
                 filters.append(DBEqualsFilter(and_op=True, column='success', value=int(success)))
 
         filter_query.filters = filters
+        return filter_query
+
+
+class StacksTransactionsFilterQuery(DBFilterQuery, FilterWithTimestamp):
+    """Filter query for Stacks transactions.
+    If `tx_id` is provided, other filter parameters (timestamp, tx_type) are ignored.
+    """
+
+    @classmethod
+    def make(
+            cls: type['StacksTransactionsFilterQuery'],
+            and_op: bool = True,
+            order_by_rules: list[tuple[str, bool]] | None = None,
+            limit: int | None = None,
+            offset: int | None = None,
+            from_ts: Timestamp | None = None,
+            to_ts: Timestamp | None = None,
+            tx_id: str | None = None,
+            tx_type: str | None = None,
+            tx_status: str | None = None,
+    ) -> 'StacksTransactionsFilterQuery':
+        """May raise:
+        - InvalidFilter for invalid combination of filters
+        """
+        if order_by_rules is None:
+            order_by_rules = [('block_time', True)]
+
+        filter_query = cls.create(
+            and_op=and_op,
+            limit=limit,
+            offset=offset,
+            order_by_rules=order_by_rules,
+        )
+        # Create the timestamp filter so that from/to ts works. But add it only if needed
+        filter_query.timestamp_filter = DBTimestampFilter(
+            and_op=True,
+            from_ts=from_ts,
+            to_ts=to_ts,
+            timestamp_field='block_time',
+        )
+        filters: list[DBFilter] = []
+        if tx_id is not None:  # tx_id means single result so make it as single filter
+            filters.append(DBEqualsFilter(and_op=True, column='tx_id', value=tx_id))
+        else:
+            filters.append(filter_query.timestamp_filter)
+            if tx_type is not None:
+                filters.append(DBEqualsFilter(and_op=True, column='tx_type', value=tx_type))
+            if tx_status is not None:
+                filters.append(DBEqualsFilter(and_op=True, column='tx_status', value=tx_status))
+
+        filter_query.filters = filters
+        return filter_query
+
+
+class StacksTransactionsNotDecodedFilterQuery(DBFilterQuery):
+
+    @classmethod
+    def make(
+            cls: type['StacksTransactionsNotDecodedFilterQuery'],
+            limit: int | None = None,
+    ) -> 'StacksTransactionsNotDecodedFilterQuery':
+        filter_query = cls.create(
+            and_op=True,
+            limit=limit,
+            offset=None,
+            order_by_rules=[('A.block_time', True)],  # order by ascending timestamp
+        )
+        filter_query.filters = [DBTransactionsPendingDecodingFilter(
+            and_op=True,
+            mappings_table_name='stacks_tx_mappings',
+        )]
         return filter_query
 
 

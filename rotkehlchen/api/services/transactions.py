@@ -18,10 +18,12 @@ from rotkehlchen.db.evmtx import DBEvmTx
 from rotkehlchen.db.filtering import (
     EvmTransactionsNotDecodedFilterQuery,
     SolanaTransactionsNotDecodedFilterQuery,
+    StacksTransactionsNotDecodedFilterQuery,
 )
 from rotkehlchen.db.history_events import DBHistoryEvents
 from rotkehlchen.db.settings import CachedSettings
 from rotkehlchen.db.solanatx import DBSolanaTx
+from rotkehlchen.db.stackstx import DBStacksTx
 from rotkehlchen.errors.api import PremiumApiError
 from rotkehlchen.errors.asset import WrongAssetType
 from rotkehlchen.errors.misc import AlreadyExists, InputError, RemoteError
@@ -66,6 +68,7 @@ if TYPE_CHECKING:
         ChecksumEvmAddress,
         EVMTxHash,
         SolanaAddress,
+        StacksAddress,
     )
 
 logger = logging.getLogger(__name__)
@@ -314,6 +317,9 @@ class TransactionsService:
                 DBSolanaTx(self.rotkehlchen.data.db).delete_transaction_data(
                     write_cursor=write_cursor,
                 )
+                DBStacksTx(self.rotkehlchen.data.db).delete_transaction_data(
+                    write_cursor=write_cursor,
+                )
                 self._delete_zksync_tx_data(write_cursor=write_cursor)
                 for cache_key in (
                     DBCacheDynamic.LAST_BTC_TX_BLOCK,
@@ -330,6 +336,11 @@ class TransactionsService:
                 DBSolanaTx(self.rotkehlchen.data.db).delete_transaction_data(
                     write_cursor=write_cursor,
                     signature=tx_ref,  # type: ignore[arg-type]
+                )
+            elif chain == SupportedBlockchain.STACKS:
+                DBStacksTx(self.rotkehlchen.data.db).delete_transaction_data(
+                    write_cursor=write_cursor,
+                    tx_id=str(tx_ref) if tx_ref is not None else None,
                 )
             elif chain == SupportedBlockchain.ZKSYNC_LITE:
                 self._delete_zksync_tx_data(
@@ -485,9 +496,13 @@ class TransactionsService:
                         chain_id=chain.to_chain_id(),
                     ),
                 )
-            else:
+            elif chain == SupportedBlockchain.SOLANA:
                 decoded_count = DBSolanaTx(self.rotkehlchen.data.db).count_hashes_not_decoded(
                     filter_query=SolanaTransactionsNotDecodedFilterQuery.make(),
+                )
+            else:  # Stacks
+                decoded_count = DBStacksTx(self.rotkehlchen.data.db).count_hashes_not_decoded(
+                    filter_query=StacksTransactionsNotDecodedFilterQuery.make(),
                 )
 
             if decoded_count > 0:
@@ -557,6 +572,15 @@ class TransactionsService:
                     'SELECT COUNT(*) FROM solana_transactions',
                 ).fetchone()[0]
 
+        if (undecoded_count := DBStacksTx(self.rotkehlchen.data.db).count_hashes_not_decoded(
+            filter_query=StacksTransactionsNotDecodedFilterQuery.make(),
+        )) != 0:
+            with self.rotkehlchen.data.db.conn.read_ctx() as cursor:
+                tx_info[chain_name := SupportedBlockchain.STACKS.name.lower()]['undecoded'] = undecoded_count  # noqa: E501
+                tx_info[chain_name]['total'] = cursor.execute(
+                    'SELECT COUNT(*) FROM stacks_transactions',
+                ).fetchone()[0]
+
         return {'result': tx_info, 'message': '', 'status_code': HTTPStatus.OK}
 
     def force_refetch_transactions(
@@ -608,6 +632,21 @@ class TransactionsService:
                         ) or []
                     ),
                 )
+            elif query_chain == SupportedBlockchain.STACKS:
+                new_transactions |= self._query_txs_for_range(
+                    from_timestamp=from_timestamp,
+                    to_timestamp=to_timestamp,
+                    address=address,
+                    blockchain=SupportedBlockchain.STACKS,
+                    query_for_range_fn=lambda addr, start_ts, end_ts: (
+                        self.rotkehlchen.chains_aggregator.stacks.transactions.query_transactions_in_range(
+                            address=addr,
+                            start_ts=start_ts,
+                            end_ts=end_ts,
+                            return_queried_hashes=True,
+                        ) or []
+                    ),
+                )
             else:
                 new_transactions |= self._query_txs_for_range(
                     from_timestamp=from_timestamp,
@@ -645,15 +684,16 @@ class TransactionsService:
             self,
             from_timestamp: Timestamp,
             to_timestamp: Timestamp,
-            address: ChecksumEvmAddress | SolanaAddress | None,
+            address: ChecksumEvmAddress | SolanaAddress | StacksAddress | None,
             blockchain: CHAINS_WITH_TRANSACTION_DECODERS_TYPE,
             query_for_range_fn: (
                 Callable[[ChecksumEvmAddress, Timestamp, Timestamp], list[EVMTxHash]] |
-                Callable[[SolanaAddress, Timestamp, Timestamp], list[Signature]]
+                Callable[[SolanaAddress, Timestamp, Timestamp], list[Signature]] |
+                Callable[[StacksAddress, Timestamp, Timestamp], list[str]]
             ),
     ) -> set[tuple[str, str]]:
         if address:
-            addresses_to_query: tuple[ChecksumEvmAddress | SolanaAddress, ...] = (address,)
+            addresses_to_query: tuple[ChecksumEvmAddress | SolanaAddress | StacksAddress, ...] = (address,)  # noqa: E501
         else:
             with self.rotkehlchen.data.db.conn.read_ctx() as cursor:
                 addresses_to_query = tuple(

@@ -121,6 +121,7 @@ class HistoryBaseEntryType(DBIntEnumMixIn):
     EVM_SWAP_EVENT = auto()
     SOLANA_EVENT = auto()
     SOLANA_SWAP_EVENT = auto()
+    STACKS_EVENT = auto()
 
 
 T = TypeVar('T', bound='HistoryBaseEntry')

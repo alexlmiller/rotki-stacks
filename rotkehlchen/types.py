@@ -22,6 +22,7 @@ from eth_utils.address import to_checksum_address
 from hexbytes import HexBytes as Web3HexBytes
 
 from rotkehlchen.chain.solana.validation import is_valid_solana_address
+from rotkehlchen.chain.stacks.validation import is_valid_stacks_address
 from rotkehlchen.constants import ZERO
 from rotkehlchen.errors.misc import AddressNotSupported, InputError
 from rotkehlchen.errors.serialization import DeserializationError
@@ -117,6 +118,7 @@ class ExternalService(SerializableEnumNameMixin):
     ALCHEMY = auto()
     SCROLL_BLOCKSCOUT = auto()
     HELIUS = auto()
+    HIRO = auto()
     ROUTESCAN = auto()
 
     def get_chain_for_blockscout(self) -> Optional['ChainID']:
@@ -177,16 +179,20 @@ Eth2PubKey = NewType('Eth2PubKey', T_Eth2PubKey)
 T_SolanaAddress = str
 SolanaAddress = NewType('SolanaAddress', T_SolanaAddress)
 
-BlockchainAddress = BTCAddress | ChecksumEvmAddress | SubstrateAddress | SolanaAddress
+T_StacksAddress = str
+StacksAddress = NewType('StacksAddress', T_StacksAddress)
+
+BlockchainAddress = BTCAddress | ChecksumEvmAddress | SubstrateAddress | SolanaAddress | StacksAddress  # noqa: E501
 AnyBlockchainAddress = TypeVar(
     'AnyBlockchainAddress',
     BTCAddress,
     ChecksumEvmAddress,
     SubstrateAddress,
     SolanaAddress,
+    StacksAddress,
 )
-ListOfBlockchainAddresses = list[BTCAddress] | list[ChecksumEvmAddress] | list[SubstrateAddress] | list[SolanaAddress]  # noqa: E501
-TuplesOfBlockchainAddresses = tuple[BTCAddress, ...] | tuple[ChecksumEvmAddress, ...] | tuple[SubstrateAddress, ...] | tuple[SolanaAddress, ...]  # noqa: E501
+ListOfBlockchainAddresses = list[BTCAddress] | list[ChecksumEvmAddress] | list[SubstrateAddress] | list[SolanaAddress] | list[StacksAddress]  # noqa: E501
+TuplesOfBlockchainAddresses = tuple[BTCAddress, ...] | tuple[ChecksumEvmAddress, ...] | tuple[SubstrateAddress, ...] | tuple[SolanaAddress, ...] | tuple[StacksAddress, ...]  # noqa: E501
 
 
 T_Price = FVal
@@ -415,6 +421,7 @@ class ChainType(SerializableEnumNameMixin):
     BITCOIN = auto()
     ETH2 = auto()
     SOLANA = auto()
+    STACKS = auto()
 
     def type_to_blockchains(self) -> Sequence['SupportedBlockchain']:
         """Return the set of valid blockchains for the chain type"""
@@ -429,6 +436,9 @@ class ChainType(SerializableEnumNameMixin):
 
         if self == ChainType.SOLANA:
             return [SupportedBlockchain.SOLANA]
+
+        if self == ChainType.STACKS:
+            return [SupportedBlockchain.STACKS]
 
         raise InputError(f'Invalid chain type {self} when removing accounts')
 
@@ -453,6 +463,7 @@ class SupportedBlockchain(SerializableEnumValueMixin):
     BINANCE_SC = 'BINANCE_SC'
     ZKSYNC_LITE = 'ZKSYNC_LITE'
     SOLANA = 'SOLANA'
+    STACKS = 'STX'
 
     def __str__(self) -> str:
         return SUPPORTED_BLOCKCHAIN_NAMES_MAPPING.get(self, super().__str__())
@@ -498,6 +509,8 @@ class SupportedBlockchain(SerializableEnumValueMixin):
             return 'BNB'
         if self == SupportedBlockchain.SOLANA:
             return 'SOL'
+        if self == SupportedBlockchain.STACKS:
+            return 'STX'
 
         return self.value
 
@@ -508,6 +521,7 @@ class SupportedBlockchain(SerializableEnumValueMixin):
         ChainType.SUBSTRATE,
         ChainType.ETH2,
         ChainType.SOLANA,
+        ChainType.STACKS,
     ]:
         """Chain type to return to the API supported chains endpoint"""
         if self.is_evm():
@@ -520,6 +534,8 @@ class SupportedBlockchain(SerializableEnumValueMixin):
             return ChainType.BITCOIN
         if self == SupportedBlockchain.SOLANA:
             return ChainType.SOLANA
+        if self == SupportedBlockchain.STACKS:
+            return ChainType.STACKS
         # else
         return ChainType.ETH2  # the outlier
 
@@ -528,6 +544,7 @@ class SupportedBlockchain(SerializableEnumValueMixin):
         ChainType.BITCOIN,
         ChainType.SUBSTRATE,
         ChainType.SOLANA,
+        ChainType.STACKS,
     ]:
         match (chain_type := self.get_chain_type()):
             case ChainType.EVM | ChainType.EVMLIKE | ChainType.ETH2:
@@ -585,6 +602,7 @@ SUPPORTED_BLOCKCHAIN_NAMES_MAPPING = {
     SupportedBlockchain.GNOSIS: 'Gnosis',
     SupportedBlockchain.ZKSYNC_LITE: 'ZKSync Lite',
     SupportedBlockchain.BINANCE_SC: 'Binance Smart Chain',
+    SupportedBlockchain.STACKS: 'Stacks',
 }
 
 SUPPORTED_BLOCKCHAIN_IMAGE_NAME_MAPPING = {
@@ -604,6 +622,7 @@ SUPPORTED_BLOCKCHAIN_IMAGE_NAME_MAPPING = {
     SupportedBlockchain.ZKSYNC_LITE: 'zksync_lite.svg',
     SupportedBlockchain.BINANCE_SC: 'binance_sc.svg',
     SupportedBlockchain.SOLANA: 'solana.svg',
+    SupportedBlockchain.STACKS: 'stacks.svg',
 }
 
 EVM_CHAINS_WITH_TRANSACTIONS_TYPE = Literal[
@@ -624,17 +643,17 @@ EVMLIKE_CHAINS_WITH_TRANSACTIONS: tuple[EVMLIKE_CHAINS_WITH_TRANSACTIONS_TYPE, .
 EVM_EVMLIKE_CHAINS_WITH_TRANSACTIONS_TYPE = EVM_CHAINS_WITH_TRANSACTIONS_TYPE | EVMLIKE_CHAINS_WITH_TRANSACTIONS_TYPE  # noqa: E501
 EVM_EVMLIKE_CHAINS_WITH_TRANSACTIONS: tuple[EVM_EVMLIKE_CHAINS_WITH_TRANSACTIONS_TYPE, ...] = EVM_CHAINS_WITH_TRANSACTIONS + EVMLIKE_CHAINS_WITH_TRANSACTIONS  # noqa: E501
 
-OTHER_CHAINS_WITH_TRANSACTIONS_TYPE = Literal[SupportedBlockchain.BITCOIN, SupportedBlockchain.BITCOIN_CASH, SupportedBlockchain.SOLANA]  # noqa: E501
+OTHER_CHAINS_WITH_TRANSACTIONS_TYPE = Literal[SupportedBlockchain.BITCOIN, SupportedBlockchain.BITCOIN_CASH, SupportedBlockchain.SOLANA, SupportedBlockchain.STACKS]  # noqa: E501
 OTHER_CHAINS_WITH_TRANSACTIONS: tuple[OTHER_CHAINS_WITH_TRANSACTIONS_TYPE, ...] = typing.get_args(OTHER_CHAINS_WITH_TRANSACTIONS_TYPE)  # noqa: E501
 
 CHAINS_WITH_TRANSACTIONS_TYPE = EVM_CHAINS_WITH_TRANSACTIONS_TYPE | EVMLIKE_CHAINS_WITH_TRANSACTIONS_TYPE | OTHER_CHAINS_WITH_TRANSACTIONS_TYPE  # noqa: E501
 CHAINS_WITH_TRANSACTIONS: tuple[CHAINS_WITH_TRANSACTIONS_TYPE, ...] = EVM_CHAINS_WITH_TRANSACTIONS + EVMLIKE_CHAINS_WITH_TRANSACTIONS + OTHER_CHAINS_WITH_TRANSACTIONS  # noqa: E501
 
-CHAINS_WITH_TX_DECODING_TYPE = EVM_CHAINS_WITH_TRANSACTIONS_TYPE | EVMLIKE_CHAINS_WITH_TRANSACTIONS_TYPE | Literal[SupportedBlockchain.SOLANA]  # noqa: E501
-CHAINS_WITH_TX_DECODING: tuple[CHAINS_WITH_TX_DECODING_TYPE, ...] = EVM_CHAINS_WITH_TRANSACTIONS + EVMLIKE_CHAINS_WITH_TRANSACTIONS + (SupportedBlockchain.SOLANA,)  # noqa: E501
+CHAINS_WITH_TX_DECODING_TYPE = EVM_CHAINS_WITH_TRANSACTIONS_TYPE | EVMLIKE_CHAINS_WITH_TRANSACTIONS_TYPE | Literal[SupportedBlockchain.SOLANA, SupportedBlockchain.STACKS]  # noqa: E501
+CHAINS_WITH_TX_DECODING: tuple[CHAINS_WITH_TX_DECODING_TYPE, ...] = EVM_CHAINS_WITH_TRANSACTIONS + EVMLIKE_CHAINS_WITH_TRANSACTIONS + (SupportedBlockchain.SOLANA, SupportedBlockchain.STACKS)  # noqa: E501
 
-CHAINS_WITH_TRANSACTION_DECODERS_TYPE = EVM_CHAINS_WITH_TRANSACTIONS_TYPE | Literal[SupportedBlockchain.SOLANA]  # noqa: E501
-CHAINS_WITH_TRANSACTION_DECODERS: tuple[CHAINS_WITH_TRANSACTION_DECODERS_TYPE, ...] = EVM_CHAINS_WITH_TRANSACTIONS + (SupportedBlockchain.SOLANA,)  # noqa: E501
+CHAINS_WITH_TRANSACTION_DECODERS_TYPE = EVM_CHAINS_WITH_TRANSACTIONS_TYPE | Literal[SupportedBlockchain.SOLANA, SupportedBlockchain.STACKS]  # noqa: E501
+CHAINS_WITH_TRANSACTION_DECODERS: tuple[CHAINS_WITH_TRANSACTION_DECODERS_TYPE, ...] = EVM_CHAINS_WITH_TRANSACTIONS + (SupportedBlockchain.SOLANA, SupportedBlockchain.STACKS)  # noqa: E501
 
 EVM_CHAIN_IDS_WITH_TRANSACTIONS_TYPE = Literal[
     ChainID.ETHEREUM,
@@ -694,6 +713,7 @@ SUPPORTED_NON_BITCOIN_CHAINS = Literal[
     SupportedBlockchain.ZKSYNC_LITE,
     SupportedBlockchain.BINANCE_SC,
     SupportedBlockchain.SOLANA,
+    SupportedBlockchain.STACKS,
 ]
 
 SUPPORTED_BITCOIN_CHAINS_TYPE = Literal[
@@ -725,12 +745,13 @@ CHAINID_TO_SUPPORTED_BLOCKCHAIN = {
 }
 NON_EVM_CHAINS = set(SupportedBlockchain) - set(SUPPORTED_BLOCKCHAIN_TO_CHAINID.keys())
 
-# Define these from the existing constants to avoid defining duplicate copies.
-# Will need changed if these grow in different ways.
-CHAINS_WITH_NODES_TYPE = CHAINS_WITH_TRANSACTION_DECODERS_TYPE
-CHAINS_WITH_NODES: tuple[CHAINS_WITH_NODES_TYPE, ...] = CHAINS_WITH_TRANSACTION_DECODERS
+# Chains with RPC node management (EVM + Solana). Stacks uses REST API, not RPC nodes.
+CHAINS_WITH_NODES_TYPE = EVM_CHAINS_WITH_TRANSACTIONS_TYPE | Literal[SupportedBlockchain.SOLANA]
+CHAINS_WITH_NODES: tuple[CHAINS_WITH_NODES_TYPE, ...] = (
+    EVM_CHAINS_WITH_TRANSACTIONS + (SupportedBlockchain.SOLANA,)
+)
 
-CHAINS_WITH_CHAIN_MANAGER = SUPPORTED_EVM_CHAINS_TYPE | SUPPORTED_EVMLIKE_CHAINS_TYPE | SUPPORTED_BITCOIN_CHAINS_TYPE | SUPPORTED_SUBSTRATE_CHAINS_TYPE | Literal[SupportedBlockchain.SOLANA]  # noqa: E501
+CHAINS_WITH_CHAIN_MANAGER = SUPPORTED_EVM_CHAINS_TYPE | SUPPORTED_EVMLIKE_CHAINS_TYPE | SUPPORTED_BITCOIN_CHAINS_TYPE | SUPPORTED_SUBSTRATE_CHAINS_TYPE | Literal[SupportedBlockchain.SOLANA, SupportedBlockchain.STACKS]  # noqa: E501
 
 
 class Location(DBCharEnumMixIn):
@@ -791,6 +812,7 @@ class Location(DBCharEnumMixIn):
     BINANCE_SC = 54  # on-chain Binance Smart Chain events
     SOLANA = 55
     AVALANCHE = 56  # on-chain Avalanche events
+    STACKS = 57  # on-chain Stacks events
 
     @staticmethod
     def from_chain_id(chain_id: EVM_CHAIN_IDS_WITH_TRANSACTIONS_TYPE) -> 'EVM_LOCATIONS_TYPE':
@@ -869,6 +891,8 @@ class Location(DBCharEnumMixIn):
                 return Location.BITCOIN_CASH
             case SupportedBlockchain.SOLANA:
                 return Location.SOLANA
+            case SupportedBlockchain.STACKS:
+                return Location.STACKS
             case _:  # should never happen
                 raise AssertionError(f'Got in Location.from_chain for {chain}')
 
@@ -893,8 +917,8 @@ EVM_EVMLIKE_LOCATIONS_TYPE = EVM_LOCATIONS_TYPE | EVMLIKE_LOCATIONS_TYPE
 EVM_EVMLIKE_LOCATIONS: tuple[EVM_EVMLIKE_LOCATIONS_TYPE, ...] = EVM_LOCATIONS + EVMLIKE_LOCATIONS
 BITCOIN_LOCATIONS_TYPE = Literal[Location.BITCOIN, Location.BITCOIN_CASH]
 BITCOIN_LOCATIONS: tuple[BITCOIN_LOCATIONS_TYPE, ...] = typing.get_args(BITCOIN_LOCATIONS_TYPE)
-BLOCKCHAIN_LOCATIONS_TYPE: TypeAlias = EVM_EVMLIKE_LOCATIONS_TYPE | BITCOIN_LOCATIONS_TYPE | Literal[Location.SOLANA]  # noqa: E501
-BLOCKCHAIN_LOCATIONS: tuple[BLOCKCHAIN_LOCATIONS_TYPE, ...] = EVM_EVMLIKE_LOCATIONS + BITCOIN_LOCATIONS + (Location.SOLANA,)  # noqa: E501
+BLOCKCHAIN_LOCATIONS_TYPE: TypeAlias = EVM_EVMLIKE_LOCATIONS_TYPE | BITCOIN_LOCATIONS_TYPE | Literal[Location.SOLANA, Location.STACKS]  # noqa: E501
+BLOCKCHAIN_LOCATIONS: tuple[BLOCKCHAIN_LOCATIONS_TYPE, ...] = EVM_EVMLIKE_LOCATIONS + BITCOIN_LOCATIONS + (Location.SOLANA, Location.STACKS)  # noqa: E501
 
 
 class ExchangeAuthCredentials(NamedTuple):
@@ -987,6 +1011,7 @@ class AddressbookEntry(NamedTuple):
         ChainType.EVMLIKE,
         ChainType.SUBSTRATE,
         ChainType.SOLANA,
+        ChainType.STACKS,
     ]:
         """Get the chain ecosystem for the provided address.
 
@@ -1006,6 +1031,8 @@ class AddressbookEntry(NamedTuple):
             return ChainType.SUBSTRATE
         if is_valid_solana_address(address=address):
             return ChainType.SOLANA
+        if is_valid_stacks_address(address=address):
+            return ChainType.STACKS
 
         # Whenever we add a new ecosystem we need to update this function.
         raise AddressNotSupported(f'Unsupported address {address}')
@@ -1269,6 +1296,10 @@ class TokenKind(DBCharEnumMixIn):
     SPL_TOKEN = auto()  # fungible tokens on solana - https://spl.solana.com/token
     SPL_NFT = auto()  # nfts on solana - https://developers.metaplex.com/token-metadata
 
+    # Stacks tokens (SIP-10)
+    SIP10_FUNGIBLE = auto()  # fungible tokens on Stacks
+    SIP10_NFT = auto()  # NFTs on Stacks (SIP-9 compatible)
+
     @classmethod
     def deserialize_evm_from_db(cls, value: Any) -> 'EVM_TOKEN_KINDS_TYPE':
         """Deserialize specifically for EVM token kinds"""
@@ -1285,11 +1316,21 @@ class TokenKind(DBCharEnumMixIn):
 
         return result  # type: ignore[return-value]  # the check above ensures it's solana token kind.
 
+    @classmethod
+    def deserialize_stacks_from_db(cls, value: Any) -> 'STACKS_TOKEN_KINDS_TYPE':
+        """Deserialize specifically for Stacks token kinds"""
+        if (result := cls.deserialize_from_db(value)) not in (TokenKind.SIP10_FUNGIBLE, TokenKind.SIP10_NFT):  # noqa: E501
+            raise DeserializationError(f'Expected Stacks token kind, got {result}')
+
+        return result  # type: ignore[return-value]  # the check above ensures it's stacks token kind.
+
 
 EVM_TOKEN_KINDS_TYPE = Literal[TokenKind.ERC20, TokenKind.ERC721]
 EVM_TOKEN_KINDS: tuple[EVM_TOKEN_KINDS_TYPE, ...] = typing.get_args(EVM_TOKEN_KINDS_TYPE)
 SOLANA_TOKEN_KINDS_TYPE = Literal[TokenKind.SPL_TOKEN, TokenKind.SPL_NFT]
 SOLANA_TOKEN_KINDS: tuple[SOLANA_TOKEN_KINDS_TYPE, ...] = typing.get_args(SOLANA_TOKEN_KINDS_TYPE)
+STACKS_TOKEN_KINDS_TYPE = Literal[TokenKind.SIP10_FUNGIBLE, TokenKind.SIP10_NFT]
+STACKS_TOKEN_KINDS: tuple[STACKS_TOKEN_KINDS_TYPE, ...] = typing.get_args(STACKS_TOKEN_KINDS_TYPE)
 
 
 class CacheType(Enum):

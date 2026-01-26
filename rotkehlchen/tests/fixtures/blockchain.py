@@ -903,6 +903,14 @@ def fixture_solana_manager(solana_inquirer):
     return SolanaManager(node_inquirer=solana_inquirer)
 
 
+@pytest.fixture(name='stacks_manager')
+def fixture_stacks_manager(greenlet_manager, database):
+    from rotkehlchen.chain.stacks.manager import StacksManager
+    from rotkehlchen.chain.stacks.node_inquirer import StacksInquirer
+    stacks_inquirer = StacksInquirer(greenlet_manager=greenlet_manager, database=database)
+    return StacksManager(node_inquirer=stacks_inquirer)
+
+
 @pytest.fixture(name='blockchain')
 def fixture_blockchain(
         ethereum_manager,
@@ -920,6 +928,7 @@ def fixture_blockchain(
         bitcoin_manager,
         bitcoin_cash_manager,
         solana_manager,
+        stacks_manager,
         blockchain_accounts,
         inquirer,  # pylint: disable=unused-argument
         messages_aggregator,
@@ -959,6 +968,7 @@ def fixture_blockchain(
         bitcoin_manager=bitcoin_manager,
         bitcoin_cash_manager=bitcoin_cash_manager,
         solana_manager=solana_manager,
+        stacks_manager=stacks_manager,
         msg_aggregator=messages_aggregator,
         database=database,
         greenlet_manager=greenlet_manager,

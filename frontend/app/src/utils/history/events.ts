@@ -12,6 +12,7 @@ import {
   type OnlineHistoryEvent,
   type SolanaEvent,
   type SolanaSwapEvent,
+  type StacksEvent,
 } from '@/types/history/events/schemas';
 
 export function isOfEventType<T extends HistoryEvent>(e: HistoryEvent, type: HistoryEventEntryType): e is T {
@@ -105,6 +106,14 @@ function isSolanaSwapEventType(type: HistoryEventEntryType): boolean {
 
 export function isSolanaSwapEvent(event: HistoryEvent): event is SolanaSwapEvent {
   return isSolanaSwapEventType(event.entryType);
+}
+
+export function isStacksEventType(type: HistoryEventEntryType): boolean {
+  return type === HistoryEventEntryType.STACKS_EVENT;
+}
+
+export function isStacksEvent(event: HistoryEvent): event is StacksEvent {
+  return isStacksEventType(event.entryType);
 }
 
 function isMissingAccountingRule(type: HistoryEventAccountingRuleStatus): boolean {

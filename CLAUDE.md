@@ -15,7 +15,7 @@ This fork adds first-class Stacks blockchain support. See `.claude/docs/stacks-i
 
 ### CRITICAL: Fork-Only Development
 
-**ALL work happens on this fork (alexlmiller/rotki), NOT upstream (rotki/rotki).**
+**ALL work happens on this fork (alexlmiller/rotki-stacks), NOT upstream (rotki/rotki).**
 
 - All commits, branches, issues, and PRs target this fork
 - Never push to or create issues/PRs on upstream without explicit permission

@@ -1,6 +1,6 @@
 import type { ValidationRuleCollection, ValidationRuleWithoutParams } from '@vuelidate/core';
 import type { Ref } from 'vue';
-import { isValidEthAddress, isValidEvmTxHash, isValidSolanaAddress, isValidSolanaSignature } from '@rotki/common';
+import { isValidEthAddress, isValidEvmTxHash, isValidSolanaAddress, isValidSolanaSignature, isValidStacksAddress, isValidStacksTxId } from '@rotki/common';
 import { helpers, minLength, required, requiredIf } from '@vuelidate/validators';
 
 interface CreateCommonRules {
@@ -23,8 +23,10 @@ interface CreateCommonRules {
   createValidCounterpartyRule: <T>(counterparties: Ref<string[]>) => ValidationRuleCollection<T>;
   createValidEthAddressRule: <T>() => ValidationRuleCollection<T>;
   createValidSolanaAddressRule: <T>() => ValidationRuleCollection<T>;
+  createValidStacksAddressRule: <T>() => ValidationRuleCollection<T>;
   createValidTxHashRule: <T>() => ValidationRuleCollection<T>;
   createValidSolanaSignatureRule: <T>() => ValidationRuleCollection<T>;
+  createValidStacksTxIdRule: <T>() => ValidationRuleCollection<T>;
 }
 
 interface UseEventFormValidationReturn {
@@ -131,6 +133,19 @@ export function useEventFormValidation(): UseEventFormValidationReturn {
         (value: string) => isValidSolanaSignature(value),
       ),
       required: helpers.withMessage(t('transactions.events.form.signature.validation.non_empty'), required),
+    }),
+    createValidStacksAddressRule: () => ({
+      isValid: helpers.withMessage(
+        t('transactions.events.form.address.validation.valid'),
+        (value: string) => !value || isValidStacksAddress(value),
+      ),
+    }),
+    createValidStacksTxIdRule: () => ({
+      isValid: helpers.withMessage(
+        t('transactions.events.form.tx_id.validation.valid'),
+        (value: string) => isValidStacksTxId(value),
+      ),
+      required: helpers.withMessage(t('transactions.events.form.tx_id.validation.non_empty'), required),
     }),
     createValidTxHashRule: () => ({
       isValid: helpers.withMessage(
