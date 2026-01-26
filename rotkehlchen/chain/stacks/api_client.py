@@ -59,7 +59,7 @@ class StacksApiClient(ExternalServiceWithRecommendedApiKey):
             self,
             endpoint: str,
             params: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
+    ) -> dict[str, Any] | None:
         """Make a request to the Hiro API with rate limiting and retry logic.
 
         Args:
@@ -145,7 +145,7 @@ class StacksApiClient(ExternalServiceWithRecommendedApiKey):
             f'Failed to query Hiro API after {MAX_RETRIES + 1} attempts: {last_error}',
         )
 
-    def get_account_balances(self, address: StacksAddress) -> dict[str, Any]:
+    def get_account_balances(self, address: StacksAddress) -> dict[str, Any] | None:
         """Get account balances for a Stacks address.
 
         Args:

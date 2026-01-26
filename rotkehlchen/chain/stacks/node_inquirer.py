@@ -74,7 +74,7 @@ class StacksInquirer:
 
         return micro_stx_to_stx(balance_micro)
 
-    def get_balances(self, address: StacksAddress) -> dict:
+    def get_balances(self, address: StacksAddress) -> dict | None:
         """Get all balances for an address including STX and tokens.
 
         Args:

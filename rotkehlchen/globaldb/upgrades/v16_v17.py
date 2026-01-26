@@ -88,4 +88,4 @@ def migrate_to_v17(
         # Re-enable foreign key checks
         write_cursor.execute('PRAGMA foreign_keys = ON')
 
-    perform_globaldb_upgrade_steps(connection, progress_handler, [_fix_stacks_identifiers])
+    perform_globaldb_upgrade_steps(connection, progress_handler)
