@@ -174,7 +174,7 @@ class StacksApiClient(ExternalServiceWithRecommendedApiKey):
             address: StacksAddress,
             limit: int = 50,
             offset: int = 0,
-    ) -> dict[str, Any]:
+    ) -> dict[str, Any] | None:
         """Get transactions for a Stacks address.
 
         Args:
@@ -193,7 +193,7 @@ class StacksApiClient(ExternalServiceWithRecommendedApiKey):
             params={'limit': limit, 'offset': offset},
         )
 
-    def get_transaction(self, tx_id: str) -> dict[str, Any]:
+    def get_transaction(self, tx_id: str) -> dict[str, Any] | None:
         """Get a single transaction by its ID.
 
         Args:
@@ -220,6 +220,8 @@ class StacksApiClient(ExternalServiceWithRecommendedApiKey):
             RemoteError: If the request fails
         """
         response = self.get_transaction(tx_id)
+        if response is None:
+            return []
         return response.get('events', [])
 
     def get_token_metadata(self, contract_principal: str) -> StacksTokenMetadata | None:

@@ -225,6 +225,9 @@ class StacksTransactions:
                 log.error(f'Failed to fetch transactions for {address}: {e}')
                 break
 
+            if response is None:
+                break
+
             results = response.get('results', [])
             if not results:
                 break
