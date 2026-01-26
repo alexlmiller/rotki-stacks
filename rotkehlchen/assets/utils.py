@@ -481,6 +481,8 @@ def get_or_create_stacks_token(
                         'UPDATE common_asset_details SET symbol=? WHERE identifier=?',
                         (symbol, identifier),
                     )
+            # Invalidate the cache so fresh data is loaded
+            AssetResolver.clean_memory_cache(identifier)
             # Return fresh token with updated data
             return StacksToken(identifier)
         return existing_token
