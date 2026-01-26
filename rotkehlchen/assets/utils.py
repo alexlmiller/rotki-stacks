@@ -459,7 +459,31 @@ def get_or_create_stacks_token(
 
     # Try to load existing token
     try:
-        return StacksToken(identifier)
+        existing_token = StacksToken(identifier)
+        # Check if we should update incomplete metadata
+        needs_update = False
+        if (name and existing_token.name and
+                existing_token.name.startswith('Unknown Stacks Token')):
+            needs_update = True
+        if symbol and existing_token.symbol == 'UNKNOWN':
+            needs_update = True
+
+        if needs_update and (name or symbol):
+            # Update the token with better metadata
+            with GlobalDBHandler().conn.write_ctx() as write_cursor:
+                if name:
+                    write_cursor.execute(
+                        'UPDATE assets SET name=? WHERE identifier=?',
+                        (name, identifier),
+                    )
+                if symbol:
+                    write_cursor.execute(
+                        'UPDATE common_asset_details SET symbol=? WHERE identifier=?',
+                        (symbol, identifier),
+                    )
+            # Return fresh token with updated data
+            return StacksToken(identifier)
+        return existing_token
     except UnknownAsset:
         pass  # Token doesn't exist, create it
 

@@ -275,11 +275,17 @@ class StacksTransactionDecoder(TransactionDecoder[StacksTransaction, StacksDecod
                 if not sender and not recipient:
                     continue
 
+                # Fetch token metadata from Hiro API for proper name/symbol
+                metadata = self.node_inquirer.api_client.get_token_metadata(contract_id)
+
                 # Get or create the token
                 try:
                     token = get_or_create_stacks_token(
                         userdb=self.database,
                         contract_id=contract_id,
+                        name=metadata.name if metadata else None,
+                        symbol=metadata.symbol if metadata else None,
+                        decimals=metadata.decimals if metadata else None,
                     )
                 except (RemoteError, DeserializationError, UnknownAsset, WrongAssetType) as e:
                     log.error(

@@ -10,8 +10,10 @@ import requests
 from rotkehlchen.chain.stacks.constants import (
     BACKOFF_MULTIPLIER,
     HIRO_API_BASE_URL,
+    HIRO_METADATA_API_URL,
     INITIAL_BACKOFF,
     MAX_RETRIES,
+    StacksTokenMetadata,
 )
 from rotkehlchen.errors.misc import RemoteError
 from rotkehlchen.externalapis.interface import ExternalServiceWithRecommendedApiKey
@@ -107,8 +109,8 @@ class StacksApiClient(ExternalServiceWithRecommendedApiKey):
                     )
 
                 if response.status_code == 404:
-                    # Address not found or no data - return empty balances
-                    return {}
+                    # Address not found or no data
+                    return None
 
                 response.raise_for_status()
                 return response.json()
@@ -219,3 +221,68 @@ class StacksApiClient(ExternalServiceWithRecommendedApiKey):
         """
         response = self.get_transaction(tx_id)
         return response.get('events', [])
+
+    def get_token_metadata(self, contract_principal: str) -> StacksTokenMetadata | None:
+        """Fetch token metadata from the Hiro Token Metadata API.
+
+        Args:
+            contract_principal: The contract principal (e.g., SP3K8BC...sbtc-token)
+
+        Returns:
+            StacksTokenMetadata if found, None otherwise
+
+        Note:
+            This uses the Hiro Token Metadata API which is separate from the main API.
+            The metadata includes name, symbol, decimals, and image URLs.
+        """
+        url = f'{HIRO_METADATA_API_URL}/ft/{contract_principal}'
+
+        # Update headers with API key
+        api_key = self._get_api_key()
+        headers = {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+        }
+        if api_key:
+            headers['x-api-key'] = api_key
+
+        try:
+            response = requests.get(url, headers=headers, timeout=DEFAULT_TIMEOUT)
+
+            if response.status_code == 404:
+                log.debug(f'No metadata found for token {contract_principal}')
+                return None
+
+            if response.status_code != 200:
+                log.warning(
+                    f'Failed to fetch metadata for {contract_principal}: '
+                    f'{response.status_code} {response.text}',
+                )
+                return None
+
+            data = response.json()
+
+            # Extract metadata from response
+            name = data.get('name')
+            symbol = data.get('symbol')
+            decimals = data.get('decimals')
+
+            if not name or not symbol:
+                log.debug(
+                    f'Incomplete metadata for {contract_principal}: '
+                    f'name={name}, symbol={symbol}',
+                )
+                return None
+
+            return StacksTokenMetadata(
+                name=name,
+                symbol=symbol,
+                decimals=decimals if decimals is not None else 6,  # Default to 6 like STX
+            )
+
+        except requests.RequestException as e:
+            log.warning(f'Error fetching token metadata for {contract_principal}: {e}')
+            return None
+        except (KeyError, ValueError) as e:
+            log.warning(f'Error parsing token metadata for {contract_principal}: {e}')
+            return None

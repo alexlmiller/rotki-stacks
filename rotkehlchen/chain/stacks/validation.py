@@ -42,6 +42,9 @@ def is_valid_stacks_address(address: object) -> bool:
     - Proper length (28-41 characters)
     - All characters after prefix are in c32 alphabet (case-insensitive)
 
+    Note: BNS names (name.btc, name.stx) are NOT supported.
+    Users must enter the actual SP... address.
+
     Args:
         address: The address to validate (can be any type)
 

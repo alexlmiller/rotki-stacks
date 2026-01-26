@@ -10,6 +10,7 @@ if TYPE_CHECKING:
 
 # Hiro API configuration
 HIRO_API_BASE_URL: Final = 'https://api.mainnet.hiro.so'
+HIRO_METADATA_API_URL: Final = 'https://api.hiro.so/metadata/v1'
 
 # Retry/backoff configuration for rate limiting
 INITIAL_BACKOFF: Final = 4  # seconds
