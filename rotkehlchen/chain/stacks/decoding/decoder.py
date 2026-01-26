@@ -29,6 +29,10 @@ from ..modules.alex.decoder import decode_alex_events, is_alex_transaction
 from ..modules.allbridge.decoder import decode_allbridge_events, is_allbridge_transaction
 from ..modules.arkadiko.decoder import decode_arkadiko_events, is_arkadiko_transaction
 from ..modules.bitflow.decoder import decode_bitflow_events, is_bitflow_transaction
+from ..modules.dual_stacking.decoder import (
+    decode_dual_stacking_events,
+    is_dual_stacking_transaction,
+)
 from ..modules.hermetica.decoder import decode_hermetica_events, is_hermetica_transaction
 from ..modules.pox.decoder import decode_pox_events, is_pox_transaction
 from ..modules.sbtc.decoder import decode_sbtc_events, is_sbtc_transaction
@@ -228,30 +232,43 @@ class StacksTransactionDecoder(TransactionDecoder[StacksTransaction, StacksDecod
             transaction: StacksTransaction,
             token_transfers: list[dict],
     ) -> list[StacksEvent]:
-        """Decode SIP-10 token transfers from a transaction."""
+        """Decode SIP-10 token transfers from a transaction.
+
+        The Hiro API returns events with structure:
+        {
+            "event_type": "fungible_token_asset",
+            "asset": {
+                "asset_event_type": "transfer" | "mint" | "burn",
+                "asset_id": "SP...::token-name",
+                "sender": "SP..." | "",
+                "recipient": "SP..." | "",
+                "amount": "12345"
+            }
+        }
+        """
         events: list[StacksEvent] = []
 
-        for transfer in token_transfers:
+        for event in token_transfers:
             try:
-                asset_identifier = transfer.get('asset_identifier', '')
+                asset_data = event.get('asset', {})
+                asset_identifier = asset_data.get('asset_id', '')
+
                 # asset_identifier is in format: contract_id::token_name
                 if '::' not in asset_identifier:
                     continue
 
                 contract_id = asset_identifier.split('::')[0]
-                raw_amount = int(transfer.get('amount', '0'))
+                raw_amount = int(asset_data.get('amount', '0'))
 
                 if raw_amount == 0:
                     continue
 
-                sender = transfer.get('sender')
-                recipient = transfer.get('recipient')
+                sender = asset_data.get('sender', '')
+                recipient = asset_data.get('recipient', '')
 
-                if sender is None or recipient is None:
+                # Handle mints (sender is empty) and burns (recipient is empty)
+                if not sender and not recipient:
                     continue
-
-                from_address = StacksAddress(sender)
-                to_address = StacksAddress(recipient)
 
                 # Get or create the token
                 try:
@@ -269,6 +286,47 @@ class StacksTransactionDecoder(TransactionDecoder[StacksTransaction, StacksDecod
                 # Calculate amount with proper decimals
                 decimals = token.resolve_to_crypto_asset().decimals or 0
                 amount = FVal(raw_amount) / (10 ** decimals)
+                symbol = token.resolve_to_asset_with_symbol().symbol
+
+                # Handle mints (receiving new tokens with no sender)
+                if not sender and recipient:
+                    if not self.base.is_tracked(recipient):
+                        continue
+                    events.append(self.base.make_event_next_index(
+                        tx_ref=transaction.tx_id,
+                        timestamp=transaction.block_time,
+                        event_type=HistoryEventType.RECEIVE,
+                        event_subtype=HistoryEventSubType.NONE,
+                        asset=token,
+                        amount=amount,
+                        location_label=recipient,
+                        notes=f'Receive {amount} {symbol} from mint',
+                        counterparty=None,
+                        address=contract_id,
+                    ))
+                    continue
+
+                # Handle burns (sending tokens with no recipient)
+                if sender and not recipient:
+                    if not self.base.is_tracked(sender):
+                        continue
+                    events.append(self.base.make_event_next_index(
+                        tx_ref=transaction.tx_id,
+                        timestamp=transaction.block_time,
+                        event_type=HistoryEventType.SPEND,
+                        event_subtype=HistoryEventSubType.NONE,
+                        asset=token,
+                        amount=amount,
+                        location_label=sender,
+                        notes=f'Burn {amount} {symbol}',
+                        counterparty=None,
+                        address=contract_id,
+                    ))
+                    continue
+
+                # Regular transfer
+                from_address = StacksAddress(sender)
+                to_address = StacksAddress(recipient)
 
                 if (direction_result := self.base.decode_direction(
                         from_address=from_address,
@@ -286,7 +344,6 @@ class StacksTransactionDecoder(TransactionDecoder[StacksTransaction, StacksDecod
                 ) = direction_result
                 counterparty_or_address = counterparty or address
                 preposition = 'to' if event_type in OUTGOING_EVENT_TYPES else 'from'
-                symbol = token.resolve_to_asset_with_symbol().symbol
 
                 events.append(self.base.make_event_next_index(
                     tx_ref=transaction.tx_id,
@@ -307,21 +364,142 @@ class StacksTransactionDecoder(TransactionDecoder[StacksTransaction, StacksDecod
 
         return events
 
-    def _fetch_token_transfers(self, tx_id: str) -> list[dict]:
-        """Fetch token transfer events for a transaction from the API."""
+    def _maybe_decode_stx_events(
+            self,
+            transaction: StacksTransaction,
+            stx_events: list[dict],
+    ) -> list[StacksEvent]:
+        """Decode STX transfers within contract calls.
+
+        The Hiro API returns STX events with structure:
+        {
+            "event_type": "stx_asset",
+            "asset": {
+                "asset_event_type": "transfer" | "mint" | "burn",
+                "sender": "SP..." | "",
+                "recipient": "SP..." | "",
+                "amount": "12345"  # in microSTX
+            }
+        }
+        """
+        events: list[StacksEvent] = []
+
+        for event in stx_events:
+            try:
+                asset_data = event.get('asset', {})
+                raw_amount = int(asset_data.get('amount', '0'))
+
+                if raw_amount == 0:
+                    continue
+
+                sender = asset_data.get('sender', '')
+                recipient = asset_data.get('recipient', '')
+
+                if not sender and not recipient:
+                    continue
+
+                amount = micro_stx_to_stx(raw_amount)
+
+                # Handle STX mints (receiving STX from contract with no sender)
+                if not sender and recipient:
+                    if not self.base.is_tracked(recipient):
+                        continue
+                    events.append(self.base.make_event_next_index(
+                        tx_ref=transaction.tx_id,
+                        timestamp=transaction.block_time,
+                        event_type=HistoryEventType.RECEIVE,
+                        event_subtype=HistoryEventSubType.NONE,
+                        asset=A_STX,
+                        amount=amount,
+                        location_label=recipient,
+                        notes=f'Receive {amount} STX',
+                        counterparty=None,
+                        address=None,
+                    ))
+                    continue
+
+                # Handle STX burns (sending STX to contract with no recipient)
+                if sender and not recipient:
+                    if not self.base.is_tracked(sender):
+                        continue
+                    events.append(self.base.make_event_next_index(
+                        tx_ref=transaction.tx_id,
+                        timestamp=transaction.block_time,
+                        event_type=HistoryEventType.SPEND,
+                        event_subtype=HistoryEventSubType.NONE,
+                        asset=A_STX,
+                        amount=amount,
+                        location_label=sender,
+                        notes=f'Spend {amount} STX',
+                        counterparty=None,
+                        address=None,
+                    ))
+                    continue
+
+                # Regular STX transfer
+                from_address = StacksAddress(sender)
+                to_address = StacksAddress(recipient)
+
+                if (direction_result := self.base.decode_direction(
+                        from_address=from_address,
+                        to_address=to_address,
+                )) is None:
+                    continue
+
+                (
+                    event_type,
+                    event_subtype,
+                    location_label,
+                    address,
+                    counterparty,
+                    verb,
+                ) = direction_result
+                counterparty_or_address = counterparty or address
+                preposition = 'to' if event_type in OUTGOING_EVENT_TYPES else 'from'
+
+                events.append(self.base.make_event_next_index(
+                    tx_ref=transaction.tx_id,
+                    timestamp=transaction.block_time,
+                    event_type=event_type,
+                    event_subtype=event_subtype,
+                    asset=A_STX,
+                    amount=amount,
+                    location_label=location_label,
+                    notes=f'{verb} {amount} STX {preposition} {counterparty_or_address}',
+                    counterparty=counterparty,
+                    address=address,
+                ))
+
+            except (KeyError, ValueError, TypeError) as e:
+                log.error(f'Failed to decode STX event in {transaction.tx_id}: {e}')
+                continue
+
+        return events
+
+    def _fetch_token_transfers(self, tx_id: str) -> tuple[list[dict], list[dict]]:
+        """Fetch token transfer events for a transaction from the API.
+
+        Returns:
+            Tuple of (fungible_token_events, stx_events)
+        """
         try:
             response = self.node_inquirer.api_client._make_request(
                 f'extended/v1/tx/{tx_id}',
             )
             if response and 'events' in response:
-                return [
-                    event for event in response['events']
-                    if event.get('event_type') == 'fungible_token_asset'
-                ]
+                ft_events = []
+                stx_events = []
+                for event in response['events']:
+                    event_type = event.get('event_type')
+                    if event_type == 'fungible_token_asset':
+                        ft_events.append(event)
+                    elif event_type == 'stx_asset':
+                        stx_events.append(event)
+                return ft_events, stx_events
         except RemoteError as e:
             log.error(f'Failed to fetch token transfers for {tx_id}: {e}')
 
-        return []
+        return [], []
 
     def _apply_protocol_decoders(
             self,
@@ -450,6 +628,15 @@ class StacksTransactionDecoder(TransactionDecoder[StacksTransaction, StacksDecod
             )
             events.extend(additional)
 
+        # Dual Stacking operations
+        elif is_dual_stacking_transaction(transaction):
+            additional = decode_dual_stacking_events(
+                transaction=transaction,
+                base_tools=self.base,
+                existing_events=events,
+            )
+            events.extend(additional)
+
     def _decode_transaction(
             self,
             transaction: StacksTransaction,
@@ -473,15 +660,25 @@ class StacksTransactionDecoder(TransactionDecoder[StacksTransaction, StacksDecod
         )) is not None:
             events.append(stx_transfer_event)
 
-        # For contract calls, fetch and decode token transfers
+        # For contract calls, fetch and decode token transfers and STX events
         if transaction.tx_type == StacksTxType.CONTRACT_CALL:
-            token_transfers = self._fetch_token_transfers(transaction.tx_id)
+            token_transfers, stx_events = self._fetch_token_transfers(transaction.tx_id)
+
+            # Decode SIP-10 token transfers
             if token_transfers:
                 token_events = self._maybe_decode_token_transfer(
                     transaction=transaction,
                     token_transfers=token_transfers,
                 )
                 events.extend(token_events)
+
+            # Decode STX transfers within contract calls
+            if stx_events:
+                stx_transfer_events = self._maybe_decode_stx_events(
+                    transaction=transaction,
+                    stx_events=stx_events,
+                )
+                events.extend(stx_transfer_events)
 
             # Apply protocol-specific decoders
             self._apply_protocol_decoders(transaction, events)
