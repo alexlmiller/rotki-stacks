@@ -696,7 +696,7 @@ uv run make lint
 # - double-indent: (no output = pass)
 # - find-duplicate-constants: ✓ No duplicate byte constants found!
 # - mypy: Success: no issues found in 2131 source files
-# - pyright: 0 errors, 0 warnings, 0 informations
+# - pyright: 0 errors, 0 warnings, 0 info
 # - pylint: (no output = pass)
 # - lint_checksum_addresses: ✅ Checked 1712 files
 ```
