@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- This file contains validation functions for all chains */
 /**
  *
  * @param {string} string - String to convert
