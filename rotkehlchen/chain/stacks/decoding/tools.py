@@ -76,17 +76,10 @@ class StacksDecoderTools(BaseDecoderTools[StacksTransaction, StacksAddress, str,
         Returns the locked_amount in micro-STX, or None if not found.
         """
         try:
-            response = self.node_inquirer.api_client._make_request(
-                f'extended/v1/tx/{tx_id}',
-            )
+            events = self.node_inquirer.api_client.get_transaction_events(tx_id)
         except RemoteError:
             log.error(f'Failed to fetch transaction {tx_id} for stx_lock amount')
             return None
-
-        if not response:
-            return None
-
-        events = response.get('events', [])
         for event in events:
             if event.get('event_type') == 'stx_lock':
                 stx_lock = event.get('stx_lock_event', {})
