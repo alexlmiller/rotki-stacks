@@ -1,34 +1,23 @@
-# Fork Maintenance Plan: rotki-stacks
+# Fork Maintenance Guide: rotki-stacks
 
-Plan for maintaining alexlmiller/rotki-stacks as a long-lived fork of rotki/rotki.
+Guide for maintaining alexlmiller/rotki-stacks as a long-lived fork of rotki/rotki.
 
----
-
-## Current State
-
-- **55 commits** ahead of upstream on `feat/add-stacks-chain`
-- **149 files changed**, ~12,900 lines added
-- Most changes are additive (new `chain/stacks/` directory)
-- ~40 upstream files modified (integration touchpoints)
+This document provides the strategy and workflows for keeping the fork in sync with upstream while maintaining Stacks-specific additions.
 
 ---
 
-## 1. Repository Rename
+## 1. Repository Identity
 
-**Action**: Rename `alexlmiller/rotki` → `alexlmiller/rotki-stacks`
+The fork is named `alexlmiller/rotki-stacks` to:
+- Establish clear identity as a specialized fork
+- Avoid confusion with upstream
+- Signal this is a maintained variant, not just a contributor fork
 
-**Steps**:
-1. GitHub Settings → Repository name → Change to `rotki-stacks`
-2. Update local remotes:
-   ```bash
-   git remote set-url origin https://github.com/alexlmiller/rotki-stacks.git
-   ```
-3. GitHub automatically redirects old URLs, but update any documentation
-
-**Benefits**:
-- Clear identity as a specialized fork
-- Avoids confusion with upstream
-- Signals this is a maintained variant, not just a contributor fork
+GitHub automatically redirects old URLs if renamed. Update local remotes:
+```bash
+git remote set-url origin https://github.com/alexlmiller/rotki-stacks.git
+gh repo set-default alexlmiller/rotki-stacks
+```
 
 ---
 
@@ -71,38 +60,7 @@ upstream/develop ──merge──> upstream-sync ──merge──> develop ─
 
 ---
 
-## 3. Initial Setup Steps
-
-### 3.1 Merge Feature Branch to Develop
-
-```bash
-git checkout develop
-git merge feat/add-stacks-chain
-git push origin develop
-```
-
-### 3.2 Create upstream-sync Branch
-
-```bash
-git checkout -b upstream-sync upstream/develop
-git push -u origin upstream-sync
-```
-
-### 3.3 Create main Branch (if not exists)
-
-```bash
-git checkout develop
-git checkout -b main
-git push -u origin main
-```
-
-### 3.4 Set Default Branch
-
-GitHub Settings → Branches → Default branch → `develop`
-
----
-
-## 4. Upstream Sync Workflow
+## 3. Upstream Sync Workflow
 
 ### Regular Sync (Weekly/Bi-weekly)
 
@@ -132,7 +90,7 @@ git push origin develop
 
 ---
 
-## 5. Conflict Zones
+## 4. Conflict Zones
 
 Files most likely to conflict during upstream merges:
 
@@ -169,7 +127,7 @@ docs/stacks-chain/                # Entirely new
 
 ---
 
-## 6. Release Strategy
+## 5. Release Strategy
 
 ### Versioning
 
@@ -198,7 +156,7 @@ For each release, document:
 
 ---
 
-## 7. Contributing Back to Upstream
+## 6. Contributing Back to Upstream
 
 ### What to PR Upstream
 
@@ -236,7 +194,7 @@ If the integration matures and you want it upstream:
 
 ---
 
-## 8. Making It Easy for Users
+## 7. Making It Easy for Users
 
 ### Documentation
 
@@ -276,30 +234,7 @@ Based on Rotki v1.41.3. We sync regularly with upstream releases.
 
 ---
 
-## 9. Immediate Action Items
-
-### Today
-
-- [ ] Merge `feat/add-stacks-chain` → `develop`
-- [ ] Create `upstream-sync` branch
-- [ ] Delete stale branches
-- [ ] Rename repo to `rotki-stacks`
-
-### This Week
-
-- [ ] Update README for fork identity
-- [ ] Create `main` branch, tag first release
-- [ ] Set up release workflow (manual or GitHub Actions)
-
-### Ongoing
-
-- [ ] Weekly/bi-weekly upstream sync
-- [ ] Tag releases after upstream releases
-- [ ] Monitor upstream for breaking changes
-
----
-
-## 10. Commands Reference
+## 8. Commands Reference
 
 ```bash
 # Check divergence from upstream

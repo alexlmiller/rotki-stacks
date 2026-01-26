@@ -21,7 +21,7 @@ This fork adds first-class Stacks blockchain support including:
 
 ### CRITICAL: Fork-Only Development
 
-**ALL work happens on this fork (alexlmiller/rotki), NOT upstream (rotki/rotki).**
+**ALL work happens on this fork (alexlmiller/rotki-stacks), NOT upstream (rotki/rotki).**
 
 - All commits, branches, issues, and PRs target this fork
 - Never push to or create issues/PRs on upstream without explicit permission
@@ -41,14 +41,14 @@ git push upstream develop
 After cloning, configure the GitHub CLI to target the fork (not upstream):
 
 ```bash
-gh repo set-default alexlmiller/rotki
+gh repo set-default alexlmiller/rotki-stacks
 ```
 
 Verify with:
 
 ```bash
 gh repo set-default --view
-# Should show: alexlmiller/rotki
+# Should show: alexlmiller/rotki-stacks
 ```
 
 This prevents `gh pr create` from accidentally targeting upstream.
