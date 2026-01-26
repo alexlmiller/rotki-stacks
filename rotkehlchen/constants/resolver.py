@@ -127,9 +127,8 @@ def stacks_contract_to_identifier(
         The contract_id should NOT include the ::asset-name suffix that Hiro API returns.
         Strip it before calling this function: contract_id.split('::')[0]
     """
-    # TokenKind.SIP10_FUNGIBLE.__str__() returns 'SIP10_FUNGIBLE'
-    # We convert to lowercase for the identifier
-    return f'{STACKS_CHAIN_DIRECTIVE}/{str(token_type).lower()}:{contract_id}'
+    # Use .name to get 'SIP10_FUNGIBLE' (with underscore), not str() which gives 'sip10 fungible'
+    return f'{STACKS_CHAIN_DIRECTIVE}/{token_type.name.lower()}:{contract_id}'
 
 
 def identifier_to_stacks_contract(identifier: str) -> StacksAddress | None:

@@ -335,6 +335,58 @@ def decode_arkadiko_events(transaction, base_tools, existing_events):
 | Function args | Full Clarity parser | Required for protocol-specific decoding |
 | Amount storage | TEXT columns | Avoid SQLite integer overflow |
 
+### 5.8 Hiro Token Metadata API Integration
+
+**The problem**: When discovering new SIP-10 tokens (not in our curated list), we need their name, symbol, and decimals to display them properly in the UI. Without this metadata, tokens appear as "Unknown Stacks Token" with raw contract identifiers.
+
+**The solution**: Integrate with the Hiro Token Metadata API to fetch token metadata on-demand.
+
+**API Endpoint**:
+```
+GET https://api.hiro.so/metadata/v1/ft/{contract_principal}
+```
+
+**Response structure**:
+```json
+{
+  "name": "Velar",
+  "symbol": "VELAR",
+  "decimals": 8,
+  "total_supply": "100000000000000000",
+  "image_uri": "https://...",
+  "cached_image": "https://..."
+}
+```
+
+**Implementation**:
+
+1. **API Client** (`api_client.py`):
+   ```python
+   def get_token_metadata(self, contract_principal: str) -> StacksTokenMetadata | None:
+       """Fetch token metadata from Hiro Token Metadata API."""
+       url = f'{HIRO_METADATA_API_URL}/ft/{contract_principal}'
+       response = requests.get(url, headers=headers, timeout=30)
+       # Returns StacksTokenMetadata(name, symbol, decimals) or None
+   ```
+
+2. **Balance Fetching** (`manager.py`):
+   - When parsing fungible token balances, fetch metadata before creating tokens
+   - Passes name/symbol/decimals to `get_or_create_stacks_token()`
+
+3. **Transaction Decoding** (`decoder.py`):
+   - When decoding SIP-10 token transfers, fetch metadata for unknown tokens
+   - Ensures decoded events show proper token names
+
+**Colibri Integration** (Rust icon service):
+- Added `query_hiro_token_icon()` function to fetch token images
+- Image URL priority: `cached_image` > `cached_thumbnail_image` > `image_canonical_uri` > `image_uri`
+- Falls back to STX icon for tokens without metadata images
+
+**Benefits**:
+- New tokens automatically get proper names/symbols from the API
+- No manual curation required for every token
+- Icons fetched dynamically for better UI experience
+
 ---
 
 ## 6. Challenges & Bug Fixes
