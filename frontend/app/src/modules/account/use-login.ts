@@ -147,9 +147,12 @@ export function useLogin(): UseLoginReturn {
 
         // Ensure Colibri is also logged in (it may have restarted)
         // Try provided password first, then fall back to stored password from keychain
+        // This is best-effort - don't fail if Colibri says "DB already unlocked"
         const passwordForColibri = credentials.password || await getPassword(username);
         if (passwordForColibri) {
-          await colibriLogin({ username, password: passwordForColibri });
+          colibriLogin({ username, password: passwordForColibri }).catch((error) => {
+            logger.debug('Colibri login failed (may already be unlocked):', error);
+          });
         }
       }
       else {
