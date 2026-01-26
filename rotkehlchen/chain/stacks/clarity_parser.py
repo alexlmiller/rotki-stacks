@@ -110,6 +110,7 @@ class ClarityLexer:
 
             start_pos = self.pos
             char = self._current_char()
+            assert char is not None  # we've checked pos < length above
 
             if char == '(':
                 tokens.append(Token(TokenType.LPAREN, '(', start_pos))

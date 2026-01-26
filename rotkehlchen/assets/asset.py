@@ -838,7 +838,7 @@ class StacksToken(CryptoAsset):
         if direct_field_initialization is True:
             return
 
-        resolved = AssetResolver().resolve_asset_to_class(
+        resolved: StacksToken = AssetResolver().resolve_asset_to_class(
             identifier=self.identifier,
             expected_type=StacksToken,
         )

@@ -34,7 +34,7 @@ MIN_ADDRESS_LENGTH: Final = 28
 MAX_ADDRESS_LENGTH: Final = 41
 
 
-def is_valid_stacks_address(address: str) -> bool:
+def is_valid_stacks_address(address: object) -> bool:
     """Check if a string is a valid Stacks address.
 
     Validates:
@@ -43,7 +43,7 @@ def is_valid_stacks_address(address: str) -> bool:
     - All characters after prefix are in c32 alphabet (case-insensitive)
 
     Args:
-        address: The address string to validate
+        address: The address to validate (can be any type)
 
     Returns:
         True if the address is valid, False otherwise

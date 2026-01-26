@@ -153,12 +153,12 @@ class AssetParser(BaseAssetParser[AssetData]):
                 token_kind=token_kind,
             )
         if asset_data.asset_type == AssetType.STACKS_TOKEN:
-            address, decimals, protocol, token_kind = self._parse_stacks_token_data(insert_text)
+            stacks_address, stacks_decimals, stacks_protocol, stacks_token_kind = self._parse_stacks_token_data(insert_text)  # noqa: E501
             return asset_data._replace(
-                address=address,
-                decimals=decimals,
-                protocol=protocol,
-                token_kind=token_kind,
+                address=stacks_address,
+                decimals=stacks_decimals,
+                protocol=stacks_protocol,
+                token_kind=stacks_token_kind,
             )
 
         return asset_data

@@ -1327,7 +1327,7 @@ class GlobalDBHandler:
             entry: SolanaToken | EvmToken | StacksToken,
             check_rowcount: bool,
             token_specific_update_callback: Callable,
-            address: SolanaAddress | ChecksumEvmAddress | None,
+            address: SolanaAddress | ChecksumEvmAddress | StacksAddress | None,
     ) -> str:
         """Generic token editing function that handles the common pattern."""
         try:
