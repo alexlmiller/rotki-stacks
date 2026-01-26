@@ -54,7 +54,15 @@ CURATED_STACKS_TOKENS: Final[dict[str, StacksTokenMetadata]] = {
         coingecko='stacking-dao',
         protocol='stackingdao',
     ),
-    # stSTXBTC - StackingDAO liquid staking token with BTC yield
+    # stSTXBTC - StackingDAO liquid staking token with BTC yield (v1 - legacy)
+    'SP4SZE494VC2YC5JYG7AYFQ44F5Q4PYV7DVMDPBG.ststxbtc-token': StacksTokenMetadata(
+        name='Stacked STX BTC (v1)',
+        symbol='stSTXBTC',
+        decimals=6,  # Same as STX
+        coingecko='stacking-dao-stacked-stacks-btc',
+        protocol='stackingdao',
+    ),
+    # stSTXBTC - StackingDAO liquid staking token with BTC yield (v2 - current)
     'SP4SZE494VC2YC5JYG7AYFQ44F5Q4PYV7DVMDPBG.ststxbtc-token-v2': StacksTokenMetadata(
         name='Stacked STX BTC',
         symbol='stSTXBTC',
@@ -285,6 +293,219 @@ CURATED_STACKS_TOKENS: Final[dict[str, StacksTokenMetadata]] = {
         symbol='B',
         decimals=6,
         coingecko='blocks-2',
+        protocol=None,
+    ),
+    # =====================================
+    # Hermetica Staking Tokens
+    # =====================================
+    # sUSDh - Staked USDh (Hermetica)
+    'SPN5AKG35QZSK2M8GAMR4AFX45659RJHDW353HSG.susdh-token-v1': StacksTokenMetadata(
+        name='Staked USDh',
+        symbol='sUSDh',
+        decimals=8,
+        coingecko=None,
+        protocol='hermetica',
+    ),
+    # =====================================
+    # Zest Protocol Tokens
+    # =====================================
+    # zUSDh - Zest Protocol USDh supply token
+    'SP2VCQJGH7PHP2DJK7Z0V48AGBHQAW3R3ZW1QF4N.zusdh-token': StacksTokenMetadata(
+        name='Zest USDh',
+        symbol='zUSDh',
+        decimals=8,
+        coingecko=None,
+        protocol='zest',
+    ),
+    # =====================================
+    # Bitflow LP Tokens
+    # =====================================
+    # Bitflow aeUSDC-USDh Stableswap LP
+    'SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR.stableswap-pool-aeusdc-usdh-v-1-2': StacksTokenMetadata(
+        name='Bitflow aeUSDC-USDh LP',
+        symbol='BF-aeUSDC-USDh',
+        decimals=6,
+        coingecko=None,
+        protocol='bitflow',
+    ),
+    # Bitflow sBTC-pBTC Stableswap LP
+    'SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR.stableswap-pool-sbtc-pbtc-v-1-1': StacksTokenMetadata(
+        name='Bitflow sBTC-pBTC LP',
+        symbol='BF-sBTC-pBTC',
+        decimals=8,
+        coingecko=None,
+        protocol='bitflow',
+    ),
+    # Bitflow STX-aeUSDC XYK LP
+    'SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR.xyk-pool-stx-aeusdc-v-1-2': StacksTokenMetadata(
+        name='Bitflow STX-aeUSDC LP',
+        symbol='BF-STX-aeUSDC',
+        decimals=6,
+        coingecko=None,
+        protocol='bitflow',
+    ),
+    # =====================================
+    # Bridge Tokens
+    # =====================================
+    # Pontis pBTC - Bridged BTC
+    'SP14NS8MVBRHXMM96BQY0727AJ59SWPV7RMHC0NCG.pontis-bridge-pBTC': StacksTokenMetadata(
+        name='Pontis BTC',
+        symbol='pBTC',
+        decimals=8,
+        coingecko=None,
+        protocol='pontis',
+    ),
+    # =====================================
+    # City Coins
+    # =====================================
+    # MiamiCoin v2
+    'SP1H1733V5MZ3SZ9XRW9FKYGEZT0JDGEB8Y634C7R.miamicoin-token-v2': StacksTokenMetadata(
+        name='MiamiCoin',
+        symbol='MIA',
+        decimals=6,
+        coingecko='miamicoin',
+        protocol='citycoin',
+    ),
+    # MiamiCoin v1
+    'SP6VJ9Z094TQ1NQB4GNHK3VZGZGKABCVY3DRJ5YE.miamicoin-token': StacksTokenMetadata(
+        name='MiamiCoin',
+        symbol='MIA',
+        decimals=6,
+        coingecko='miamicoin',
+        protocol='citycoin',
+    ),
+    # NewYorkCityCoin v2
+    'SPSCWDV3RKV5ZRN1FQD84YE1NQFEDJ9R1F4DYQ11.newyorkcitycoin-token-v2': StacksTokenMetadata(
+        name='NewYorkCityCoin',
+        symbol='NYC',
+        decimals=6,
+        coingecko='newyorkcoin',
+        protocol='citycoin',
+    ),
+    # =====================================
+    # Other Protocol Tokens
+    # =====================================
+    # Bitflow token
+    'SP3G437RF2PAM7VT3PJ3FYDCDYRKKBJHABDMGVS6V.bitflow': StacksTokenMetadata(
+        name='Bitflow',
+        symbol='BITFLOW',
+        decimals=6,
+        coingecko=None,
+        protocol='bitflow',
+    ),
+    # sBTCDAO - sBTC governance token
+    'SP1MR5NKZPJX9CGYPH6YKBHAKK3JM581F1A35JXP6.sbtcdao': StacksTokenMetadata(
+        name='sBTC DAO',
+        symbol='sBTCDAO',
+        decimals=6,
+        coingecko=None,
+        protocol='sbtc',
+    ),
+    # =====================================
+    # Additional Meme/Community Tokens
+    # =====================================
+    # Corgi (not Welsh)
+    'SP2EXJYQG612FXBH0J2800K2HHD3Z9P1J48WW39V6.corgi': StacksTokenMetadata(
+        name='Corgi',
+        symbol='CORGI',
+        decimals=6,
+        coingecko=None,
+        protocol=None,
+    ),
+    # PLAY token
+    'SP1PW804599BZ46B4A0FYH86ED26XPJA7SFYNK1XS.play': StacksTokenMetadata(
+        name='Play',
+        symbol='PLAY',
+        decimals=6,
+        coingecko=None,
+        protocol=None,
+    ),
+    # Moscow City Coin
+    'SP2PF4VYW8B62TASG7AKFESQ04CKTWM21X09PY837.moscow-city-coin-stxcity': StacksTokenMetadata(
+        name='Moscow City Coin',
+        symbol='MOSCOW',
+        decimals=6,
+        coingecko=None,
+        protocol=None,
+    ),
+    # RALEX - ALEX wrapper/related token
+    'SP37WN2BYHKZ90T1ATHTCNG8EFYHS3B49KNGS02ZK.RALEX': StacksTokenMetadata(
+        name='RALEX',
+        symbol='RALEX',
+        decimals=8,
+        coingecko=None,
+        protocol='alex',
+    ),
+    # Meme token (stxcity)
+    'SP3HNEXSXJK2RYNG5P6YSEE53FREX645JPJJ5FBFA.meme-stxcity': StacksTokenMetadata(
+        name='Meme',
+        symbol='MEME',
+        decimals=6,
+        coingecko=None,
+        protocol=None,
+    ),
+    # Trump Meme
+    'SP6TNST5EKBSTGKBR0R95AF01HPW5747FYRBHKXT.trump-meme': StacksTokenMetadata(
+        name='Trump Meme',
+        symbol='TRUMP',
+        decimals=6,
+        coingecko=None,
+        protocol=None,
+    ),
+    # Teiko token
+    'SP1T0VY3DNXRVP6HBM75DFWW0199CR0X15PC1D81B.teiko-token-stxcity': StacksTokenMetadata(
+        name='Teiko',
+        symbol='TEIKO',
+        decimals=6,
+        coingecko=None,
+        protocol=None,
+    ),
+    # PixelStacks
+    'SP14XEKF7G8Q4WFYBSE77XSDMM67GTVF95R4V680.pixelstacks': StacksTokenMetadata(
+        name='PixelStacks',
+        symbol='PIXEL',
+        decimals=6,
+        coingecko=None,
+        protocol=None,
+    ),
+    # Faktory Fun token (bonding curve)
+    'SPV9K21TBFAK4KNRJXF5DFP8N7W46G4V9RCJDC22.fakfun-faktory': StacksTokenMetadata(
+        name='FakFun',
+        symbol='FAKFUN',
+        decimals=6,
+        coingecko=None,
+        protocol='faktory',
+    ),
+    # Bitflow Tokens (wrapper/utility)
+    'SP2YKJXBBS2E6GSN2W4CBM3DJ8K4Q4RB4NYBR3C3Q.bitflow-tokens': StacksTokenMetadata(
+        name='Bitflow Tokens',
+        symbol='BFT',
+        decimals=6,
+        coingecko=None,
+        protocol='bitflow',
+    ),
+    # Old stSTXBTC (v1)
+    'SP4SZE494VC2YC5JYG7AYFQ44F5Q4PYV7DVMDPBG.ststxbtc-token': StacksTokenMetadata(
+        name='Stacked STX BTC (v1)',
+        symbol='stSTXBTC',
+        decimals=6,
+        coingecko='stacking-dao-stacked-stacks-btc',
+        protocol='stackingdao',
+    ),
+    # Bonding curve token example
+    'SP1KNRNZET8ZC5Q9P6F1FFW8YQH45CKMNY132B36S.ned2gsk-bonding-curve': StacksTokenMetadata(
+        name='Ned2GSK',
+        symbol='NED2GSK',
+        decimals=6,
+        coingecko=None,
+        protocol='faktory',
+    ),
+    # TardlexLabs token
+    'SP1EJYSM3PDXCFKPY09CM2M13FPS26YVTCAH0R95E.TardlexLabsTokenContract': StacksTokenMetadata(
+        name='TardlexLabs',
+        symbol='TARDLEX',
+        decimals=6,
+        coingecko=None,
         protocol=None,
     ),
 }

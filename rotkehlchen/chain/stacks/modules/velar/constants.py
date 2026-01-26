@@ -24,9 +24,6 @@ VELAR_TOKEN_CONTRACT: Final = StacksAddress(
     'SP1Y5YSTAHZ88XYK1VPDH24GY0HPX5J4JECTMY4A1.velar-token',
 )
 
-# Velar XYK Contracts deployer (LP staking pools)
-VELAR_XYK_DEPLOYER: Final = 'SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR'
-
 # Function names for swaps
 VELAR_DO_SWAP: Final = 'do-swap'
 VELAR_SWAP_EXACT_TOKENS_FOR_TOKENS: Final = 'swap-exact-tokens-for-tokens'

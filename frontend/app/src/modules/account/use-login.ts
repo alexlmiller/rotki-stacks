@@ -5,6 +5,7 @@ import { objectPick } from '@vueuse/shared';
 import { useExchangeApi } from '@/composables/api/balances/exchanges';
 import { useUsersApi } from '@/composables/api/session/users';
 import { useSettingsApi } from '@/composables/api/settings/settings-api';
+import { useInterop } from '@/composables/electron-interop';
 import { useSessionSettings } from '@/composables/session/settings';
 import { api } from '@/modules/api/rotki-api';
 import { useMonitorStore } from '@/store/monitor';
@@ -45,6 +46,7 @@ export function useLogin(): UseLoginReturn {
   const { checkIfLogged, colibriLogin, createAccount: callCreatAccount, login: callLogin } = useUsersApi();
   const { getRawSettings, setSettings } = useSettingsApi();
   const { getExchanges } = useExchangeApi();
+  const { getPassword } = useInterop();
 
   api.setOnAuthFailure(() => {
     set(logged, false);
@@ -141,8 +143,10 @@ export function useLogin(): UseLoginReturn {
         settings = UserSettingsModel.parse(rawSettings);
 
         // Ensure Colibri is also logged in (it may have restarted)
-        if (credentials.password) {
-          await colibriLogin(objectPick(credentials, ['username', 'password']));
+        // Try provided password first, then fall back to stored password from keychain
+        const passwordForColibri = credentials.password || await getPassword(username);
+        if (passwordForColibri) {
+          await colibriLogin({ username, password: passwordForColibri });
         }
       }
       else {

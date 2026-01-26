@@ -19,6 +19,9 @@ BITFLOW_POOL_USDA_SUSDT: Final = StacksAddress(
     'SPQC38PW542EQJ5M11CR25P7BS1CA6QT4TBXGB3M.stableswap-usda-susdt-v-1-2',
 )
 
+# Bitflow LP token deployer address (deploys stableswap-pool-* and xyk-pool-* contracts)
+BITFLOW_LP_DEPLOYER: Final = 'SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR'
+
 # Function names for swaps
 BITFLOW_SWAP: Final = 'swap'
 BITFLOW_SWAP_HELPER: Final = 'swap-helper'

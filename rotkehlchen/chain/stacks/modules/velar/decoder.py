@@ -13,7 +13,6 @@ from .constants import (
     VELAR_LIQUIDITY_FUNCTIONS,
     VELAR_STAKING_FUNCTIONS,
     VELAR_SWAP_FUNCTIONS,
-    VELAR_XYK_DEPLOYER,
     VELAR_XYK_STAKING_FUNCTIONS,
 )
 
@@ -27,17 +26,11 @@ log = RotkehlchenLogsAdapter(logger)
 def is_velar_transaction(transaction: StacksTransaction) -> bool:
     """Check if the transaction involves Velar contracts.
 
-    Velar has two sets of contracts:
-    1. Core UniV2 contracts at SP1Y5YSTAHZ88XYK1VPDH24GY0HPX5J4JECTMY4A1
-    2. XYK LP staking contracts at SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR
+    Velar core UniV2 contracts are at SP1Y5YSTAHZ88XYK1VPDH24GY0HPX5J4JECTMY4A1
     """
     if transaction.contract_id is None:
         return False
-    # Check explicit contract list or XYK staking contracts (pattern: deployer.xyk-*)
-    return (
-        transaction.contract_id in VELAR_CONTRACTS or
-        transaction.contract_id.startswith(VELAR_XYK_DEPLOYER + '.xyk-')
-    )
+    return transaction.contract_id in VELAR_CONTRACTS
 
 
 def _decode_velar_swap(
