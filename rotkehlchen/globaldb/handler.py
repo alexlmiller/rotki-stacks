@@ -52,6 +52,7 @@ from rotkehlchen.types import (
     LocationAssetMappingUpdateEntry,
     Price,
     SolanaAddress,
+    StacksAddress,
     Timestamp,
     TokenKind,
 )
@@ -559,11 +560,14 @@ class GlobalDBHandler:
         SELECT A.identifier, A.type, S.address, S.decimals, A.name, C.symbol, C.started, null, C.swapped_for, C.coingecko, C.cryptocompare, S.protocol, null, S.token_kind FROM assets as A JOIN solana_tokens as S
         ON S.identifier = A.identifier JOIN common_asset_details AS C ON C.identifier = S.identifier WHERE A.type = '{AssetType.SOLANA_TOKEN.serialize_for_db()}' {specific_ids_query}
         UNION ALL
+        SELECT A.identifier, A.type, ST.contract_id, ST.decimals, A.name, C.symbol, C.started, null, C.swapped_for, C.coingecko, C.cryptocompare, ST.protocol, null, ST.token_kind FROM assets as A JOIN stacks_tokens as ST
+        ON ST.identifier = A.identifier JOIN common_asset_details AS C ON C.identifier = ST.identifier WHERE A.type = '{AssetType.STACKS_TOKEN.serialize_for_db()}' {specific_ids_query}
+        UNION ALL
         SELECT A.identifier, A.type, null, null, A.name, B.symbol,  B.started, B.forked, B.swapped_for, B.coingecko, B.cryptocompare, null, null, null from assets as A JOIN common_asset_details as B
-        ON B.identifier = A.identifier WHERE A.type NOT IN ('{AssetType.EVM_TOKEN.serialize_for_db()}', '{AssetType.SOLANA_TOKEN.serialize_for_db()}') {specific_ids_query};
+        ON B.identifier = A.identifier WHERE A.type NOT IN ('{AssetType.EVM_TOKEN.serialize_for_db()}', '{AssetType.SOLANA_TOKEN.serialize_for_db()}', '{AssetType.STACKS_TOKEN.serialize_for_db()}') {specific_ids_query};
         """  # noqa: E501
         if specific_ids is not None:
-            bindings = (*specific_ids, *specific_ids, *specific_ids)
+            bindings = (*specific_ids, *specific_ids, *specific_ids, *specific_ids)
         else:
             bindings = ()
 
@@ -571,7 +575,7 @@ class GlobalDBHandler:
             cursor.execute(querystr, bindings)
             for entry in cursor:
                 asset_type = AssetType.deserialize_from_db(entry[1])
-                address: ChecksumEvmAddress | SolanaAddress | None
+                address: ChecksumEvmAddress | SolanaAddress | StacksAddress | None
                 token_kind: TokenKind | None
                 if asset_type == AssetType.EVM_TOKEN:
                     address = string_to_evm_address(entry[2])
@@ -581,6 +585,10 @@ class GlobalDBHandler:
                     address = SolanaAddress(entry[2])
                     chain_id = None
                     token_kind = TokenKind.deserialize_solana_from_db(entry[13])
+                elif asset_type == AssetType.STACKS_TOKEN:
+                    address = StacksAddress(entry[2])
+                    chain_id = None
+                    token_kind = TokenKind.deserialize_stacks_from_db(entry[13])
                 else:
                     address, chain_id, token_kind = None, None, None
                 data = AssetData(
