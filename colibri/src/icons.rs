@@ -428,14 +428,30 @@ pub async fn query_icon_remotely(
         "SOL" => Some(("https://raw.githubusercontent.com/SmolDapp/tokenAssets/main/tokens/1151111081099710/So11111111111111111111111111111111111111112/logo.svg", "svg")),
         "STX" => Some(("https://raw.githubusercontent.com/alexlmiller/rotki/feat/add-stacks-chain/rotkehlchen/data/icons/stx.svg", "svg")),
         "eip155:1/erc20:0x455e53CBB86018Ac2B8092FdCd39d8444aFFC3F6" => Some(("https://raw.githubusercontent.com/SmolDapp/tokenAssets/refs/heads/main/chains/1101/logo.svg", "svg")),  // polygon
-        // Stacks SIP-10 tokens
-        id if id.contains("SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.sbtc") => Some(("https://assets.coingecko.com/coins/images/52749/standard/sBTC.png", "png")),  // sBTC
+        // Stacks SIP-10 tokens - Core DeFi
+        id if id.contains("SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token") => Some(("https://assets.coingecko.com/coins/images/52749/standard/sBTC.png", "png")),  // sBTC (mainnet)
+        id if id.contains("SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.sbtc") => Some(("https://assets.coingecko.com/coins/images/52749/standard/sBTC.png", "png")),  // sBTC (legacy)
         id if id.contains("SP4SZE494VC2YC5JYG7AYFQ44F5Q4PYV7DVMDPBG.ststx-token") => Some(("https://assets.coingecko.com/coins/images/28953/standard/stSTX.png", "png")),  // stSTX (StackingDAO)
+        id if id.contains("SP4SZE494VC2YC5JYG7AYFQ44F5Q4PYV7DVMDPBG.ststxbtc-token") => Some(("https://coin-images.coingecko.com/coins/images/54062/large/ststxbtc.png", "png")),  // stSTXBTC (StackingDAO)
         id if id.contains("SP3Y2ZSH8P7D50B0VBTSX11S7XSG24M1VB9YFQA4K.token-aeusdc") => Some(("https://assets.coingecko.com/coins/images/6319/standard/usdc.png", "png")),  // aeUSDC (Allbridge)
+        id if id.contains("SP120SBRBQJ00MCWS7TM5R8WJNTTKD5K0HFRC2CNE.usdcx") => Some(("https://assets.coingecko.com/coins/images/6319/standard/usdc.png", "png")),  // USDCx (Circle)
         id if id.contains("SP2C2YFP12AJZB4MABJBAJ55XECVS7E4PMMZ89YZR.usda-token") => Some(("https://assets.coingecko.com/coins/images/20852/standard/USDA.png", "png")),  // USDA (Arkadiko)
+        id if id.contains("SP2C2YFP12AJZB4MABJBAJ55XECVS7E4PMMZ89YZR.arkadiko-token") => Some(("https://coin-images.coingecko.com/coins/images/21729/large/diko.png", "png")),  // DIKO (Arkadiko)
         id if id.contains("SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.token-alex") => Some(("https://assets.coingecko.com/coins/images/25972/standard/alex.png", "png")),  // ALEX
         id if id.contains("SP1Y5YSTAHZ88XYK1VPDH24GY0HPX5J4JECTMY4A1.velar-token") => Some(("https://assets.coingecko.com/coins/images/35286/standard/velar_icon.png", "png")),  // VELAR
-        id if id.contains("SP3NE50GEXFG9SZGEPBER8MBWYBH8DQNM69Y3PSAP.usdh-token") => Some(("https://assets.coingecko.com/coins/images/36055/standard/usdh.png", "png")),  // USDh (Hermetica)
+        id if id.contains("SP1Y5YSTAHZ88XYK1VPDH24GY0HPX5J4JECTMY4A1.wstx") => Some(("https://raw.githubusercontent.com/alexlmiller/rotki/feat/add-stacks-chain/rotkehlchen/data/icons/stx.svg", "svg")),  // wSTX (Velar)
+        id if id.contains("SPN5AKG35QZSK2M8GAMR4AFX45659RJHDW353HSG.usdh-token") => Some(("https://assets.coingecko.com/coins/images/36055/standard/usdh.png", "png")),  // USDh (Hermetica)
+        id if id.contains("SPN5AKG35QZSK2M8GAMR4AFX45659RJHDW353HSG.susdh-token") => Some(("https://assets.coingecko.com/coins/images/36055/standard/usdh.png", "png")),  // sUSDh (staked USDh)
+        // Stacks SIP-10 tokens - Bridge tokens
+        id if id.contains("SP3DX3H4FEYZJZ586MFBS25ZW3HZDMEW92260R2PR.Wrapped-Bitcoin") => Some(("https://raw.githubusercontent.com/rotki/data/develop/assets/icons/btc.png", "png")),  // xBTC
+        id if id.contains("SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.token-susdt") => Some(("https://coin-images.coingecko.com/coins/images/30407/large/aUSD.png", "png")),  // sUSDT (ALEX)
+        id if id.contains("SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.token-abtc") => Some(("https://coin-images.coingecko.com/coins/images/33363/large/aBTC.png", "png")),  // aBTC (XLink)
+        id if id.contains("SP14NS8MVBRHXMM96BQY0727AJ59SWPV7RMHC0NCG.pontis-bridge-pBTC") => Some(("https://raw.githubusercontent.com/rotki/data/develop/assets/icons/btc.png", "png")),  // pBTC (Pontis)
+        // Stacks SIP-10 tokens - Community/Meme tokens
+        id if id.contains("SP3NE50GEXFG9SZGTT51P40X2CKYSZ5CC4ZTZ7A2G.welshcorgicoin-token") => Some(("https://coin-images.coingecko.com/coins/images/34009/large/welsh.png", "png")),  // WELSH
+        // Stacks SIP-10 tokens - City Coins
+        id if id.contains("SP1H1733V5MZ3SZ9XRW9FKYGEZT0JDGEB8Y634C7R.miamicoin-token-v2") => Some(("https://assets.coingecko.com/coins/images/17031/standard/mia.png", "png")),  // MiamiCoin v2
+        id if id.contains("SP6VJ9Z094TQ1NQB4GNHK3VZGZGKABCVY3DRJ5YE.miamicoin-token") => Some(("https://assets.coingecko.com/coins/images/17031/standard/mia.png", "png")),  // MiamiCoin v1
         _ => None
     } {
         if let Some(icon_bytes) = query_image_from_cdn(url).await {
