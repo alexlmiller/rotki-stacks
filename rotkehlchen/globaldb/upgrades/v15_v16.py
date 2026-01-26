@@ -18,20 +18,49 @@ log = RotkehlchenLogsAdapter(logger)
 
 @enter_exit_debug_log(name='globaldb v15->v16 upgrade')
 def migrate_to_v16(connection: 'DBConnection', progress_handler: 'DBUpgradeProgressHandler') -> None:  # noqa: E501
-    """This globalDB upgrade adds curated Stacks tokens to the database.
+    """This globalDB upgrade adds Stacks blockchain support to the database.
 
+    - Adds token_kinds for Stacks SIP-10 tokens (F=fungible, G=NFT)
+    - Creates stacks_tokens table
     - Populates stacks_tokens table with well-known SIP-10 tokens
     - Adds corresponding entries to assets and common_asset_details tables
     - Sets swapped_for on STX-2 (Blockstack) to point to STX (Stacks)
 
     This upgrade takes place in v1.43.0"""
 
+    @progress_step('Add Stacks token kinds to token_kinds table')
+    def _add_stacks_token_kinds(write_cursor: 'DBCursor') -> None:
+        """Add token kinds F (SIP10_FUNGIBLE) and G (SIP10_NFT) for Stacks."""
+        write_cursor.execute("""
+            /* SIP10 FUNGIBLE (Stacks) */
+            INSERT OR IGNORE INTO token_kinds(token_kind, seq) VALUES ('F', 6);
+            /* SIP10 NFT (Stacks) */
+            INSERT OR IGNORE INTO token_kinds(token_kind, seq) VALUES ('G', 7);
+        """)
+        log.debug('Added Stacks token kinds F and G to token_kinds table')
+
+    @progress_step('Create stacks_tokens table')
+    def _create_stacks_tokens_table(write_cursor: 'DBCursor') -> None:
+        """Create the stacks_tokens table for Stacks SIP-10 tokens."""
+        write_cursor.execute("""
+        CREATE TABLE IF NOT EXISTS stacks_tokens (
+            identifier TEXT PRIMARY KEY NOT NULL COLLATE NOCASE,
+            token_kind CHAR(1) NOT NULL DEFAULT('F') REFERENCES token_kinds(token_kind),
+            contract_id TEXT NOT NULL,
+            decimals INTEGER,
+            protocol TEXT,
+            FOREIGN KEY(identifier) REFERENCES assets(identifier)
+                ON UPDATE CASCADE ON DELETE CASCADE
+        )""")
+        write_cursor.execute(
+            'CREATE INDEX IF NOT EXISTS idx_stacks_tokens_identifier '
+            'ON stacks_tokens (identifier, protocol);',
+        )
+        log.debug('Created stacks_tokens table')
+
     @progress_step('Populate stacks_tokens table with curated tokens')
     def _populate_stacks_tokens(write_cursor: 'DBCursor') -> None:
-        """Add curated Stacks tokens from constants to the database.
-
-        Token kinds 'F' (SIP10_FUNGIBLE) and 'G' (SIP10_NFT) already exist.
-        """
+        """Add curated Stacks tokens from constants to the database."""
         stacks_type_char = AssetType.STACKS_TOKEN.serialize_for_db()
         token_kind_char = TokenKind.SIP10_FUNGIBLE.serialize_for_db()
 
