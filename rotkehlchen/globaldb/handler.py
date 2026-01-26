@@ -83,15 +83,16 @@ FROM assets LEFT JOIN common_asset_details on assets.identifier=common_asset_det
 LEFT JOIN evm_tokens ON evm_tokens.identifier=assets.identifier
 LEFT JOIN custom_assets ON custom_assets.identifier=assets.identifier
 LEFT JOIN solana_tokens ON solana_tokens.identifier=assets.identifier
+LEFT JOIN stacks_tokens ON stacks_tokens.identifier=assets.identifier
 """
 
 
 ALL_ASSETS_TABLES_QUERY = """
-SELECT assets.identifier, name, symbol, chain, assets.type, custom_assets.type, evm_tokens.address, solana_tokens.address """ + _ALL_ASSETS_TABLES_JOINS  # noqa: E501
+SELECT assets.identifier, name, symbol, chain, assets.type, custom_assets.type, evm_tokens.address, solana_tokens.address, stacks_tokens.contract_id """ + _ALL_ASSETS_TABLES_JOINS  # noqa: E501
 
 
 ALL_ASSETS_TABLES_QUERY_WITH_COLLECTIONS = (
-    'SELECT assets.identifier, assets.name, common_asset_details.symbol, chain, assets.type, custom_assets.type, collection_id, asset_collections.name, asset_collections.symbol, asset_collections.main_asset, evm_tokens.protocol, common_asset_details.coingecko, common_asset_details.cryptocompare, solana_tokens.protocol' +  # noqa: E501
+    'SELECT assets.identifier, assets.name, common_asset_details.symbol, chain, assets.type, custom_assets.type, collection_id, asset_collections.name, asset_collections.symbol, asset_collections.main_asset, evm_tokens.protocol, common_asset_details.coingecko, common_asset_details.cryptocompare, solana_tokens.protocol, stacks_tokens.protocol' +  # noqa: E501
     _ALL_ASSETS_TABLES_JOINS +
     'LEFT JOIN multiasset_mappings ON assets.identifier=multiasset_mappings.asset LEFT JOIN asset_collections ON multiasset_mappings.collection_id=asset_collections.id'  # noqa: E501
 )
@@ -464,7 +465,7 @@ class GlobalDBHandler:
                             'symbol': entry[8],
                             'main_asset': entry[9],
                         }
-                if entry[10] == SPAM_PROTOCOL or entry[13] == SPAM_PROTOCOL:
+                if entry[10] == SPAM_PROTOCOL or entry[13] == SPAM_PROTOCOL or entry[14] == SPAM_PROTOCOL:  # noqa: E501
                     result[entry[0]].update({'is_spam': True})
                 if entry[11] is not None:
                     result[entry[0]].update({'coingecko': entry[11]})
