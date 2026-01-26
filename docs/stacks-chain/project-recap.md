@@ -557,6 +557,152 @@ For a 5-minute walkthrough:
 
 ---
 
+---
+
+## 12. CI Troubleshooting and PR Preparation
+
+Getting PR #10 ready for merge into develop required significant troubleshooting of CI failures. This section documents the issues encountered and their resolutions.
+
+### 12.1 Backend Lint Failures - Type Stub Mismatch
+
+**Problem**: Backend lint CI kept failing even though local `mypy` and `ruff` passed.
+
+**Root Cause Discovery**: The CI runs `make lint` which includes:
+```bash
+mypy rotkehlchen/ --install-types --non-interactive
+```
+
+The `--install-types` flag downloads type stubs (like `urllib3-stubs`) that change mypy's behavior. Local development without these stubs produced different results.
+
+**Specific Issues**:
+
+| File | Local Behavior | CI Behavior | Resolution |
+|------|---------------|-------------|------------|
+| `network.py:69` | "Unused type ignore" | `backoff_max` is unknown arg | Restore `# type: ignore[call-arg]` |
+| `coinbase.py:203` | Type mismatch error | No error with stubs | Remove unnecessary type ignore |
+| `assets/utils.py:471,477` | N/A | `rotki-nonbooleannot` violation | Use explicit `== ''` instead of truthy checks |
+
+**Key Lesson**: Always run `uv run make lint` (not just `mypy` or `ruff` individually) before pushing. The full lint suite with `--install-types` matches CI behavior.
+
+### 12.2 Database Migration Failures
+
+**Problem**: Backend tests failed with:
+```
+ValueError: Failed at global DB upgrade from version 15 to 16: FOREIGN KEY constraint failed
+```
+
+**Root Cause**: The v15_v16.py migration inserted into `stacks_tokens` table without creating it first. Unlike the main schema (which includes the table for fresh installs), upgrades from v15 databases don't have this table.
+
+**Solution**: Following the Solana migration pattern (v12_v13.py), updated v15_v16.py to:
+
+1. **Add token_kinds** for Stacks:
+   ```python
+   @progress_step('Add Stacks token kinds to token_kinds table')
+   def _add_stacks_token_kinds(write_cursor):
+       write_cursor.execute("""
+           INSERT OR IGNORE INTO token_kinds(token_kind, seq) VALUES ('F', 6);
+           INSERT OR IGNORE INTO token_kinds(token_kind, seq) VALUES ('G', 7);
+       """)
+   ```
+
+2. **Create the table** before populating:
+   ```python
+   @progress_step('Create stacks_tokens table')
+   def _create_stacks_tokens_table(write_cursor):
+       write_cursor.execute("""
+       CREATE TABLE IF NOT EXISTS stacks_tokens (
+           identifier TEXT PRIMARY KEY NOT NULL COLLATE NOCASE,
+           token_kind CHAR(1) NOT NULL DEFAULT('F') REFERENCES token_kinds(token_kind),
+           contract_id TEXT NOT NULL,
+           decimals INTEGER,
+           protocol TEXT,
+           FOREIGN KEY(identifier) REFERENCES assets(identifier)
+               ON UPDATE CASCADE ON DELETE CASCADE
+       )""")
+   ```
+
+3. **Then populate** with curated tokens (existing logic)
+
+### 12.3 Missing Blockchain Constant
+
+**Problem**: Test `test_valid_bitcoin_chains` failed:
+```
+AssertionError: assert <SupportedBlockchain.STACKS: 'STX'> in NON_BITCOIN_CHAINS
+```
+
+**Root Cause**: `NON_BITCOIN_CHAINS` in `chain/constants.py` lists all non-Bitcoin blockchains, but STACKS wasn't added.
+
+**Solution**: Added `SupportedBlockchain.STACKS` to the list:
+```python
+NON_BITCOIN_CHAINS = [
+    SupportedBlockchain.AVALANCHE,
+    SupportedBlockchain.POLKADOT,
+    SupportedBlockchain.ETHEREUM_BEACONCHAIN,
+    SupportedBlockchain.KUSAMA,
+    SupportedBlockchain.SOLANA,
+    SupportedBlockchain.STACKS,  # Added
+] + list(SUPPORTED_BLOCKCHAIN_TO_CHAINID.keys()) + list(SUPPORTED_EVMLIKE_CHAINS)
+```
+
+### 12.4 Token Identifier Format Issues
+
+**Problem**: Earlier in development, Stacks token identifiers had spaces (`stacks/sip10 fungible:...`) causing icon lookup failures.
+
+**Root Cause**: The `TokenKind` enum's `__str__` method returned "sip10 fungible" instead of "sip10_fungible".
+
+**Solution**: Added v16_v17.py migration to fix existing identifiers:
+```python
+@progress_step('Fix Stacks token identifiers format')
+def _fix_stacks_identifiers(write_cursor):
+    # Disable FK checks temporarily
+    write_cursor.execute('PRAGMA foreign_keys = OFF')
+
+    # Update identifiers from 'sip10 fungible' to 'sip10_fungible'
+    for table in ('assets', 'common_asset_details', 'stacks_tokens'):
+        write_cursor.execute(f"""
+            UPDATE {table}
+            SET identifier = REPLACE(identifier, 'stacks/sip10 fungible:', 'stacks/sip10_fungible:')
+            WHERE identifier LIKE 'stacks/sip10 fungible:%'
+        """)
+
+    write_cursor.execute('PRAGMA foreign_keys = ON')
+```
+
+### 12.5 CI Job Visibility
+
+**Discovery**: The "Backend lint" job was **skipped** on recent develop commits because they only touched frontend files. Our PR triggered it because we modified backend code, exposing pre-existing issues.
+
+**Lesson**: CI jobs with conditional execution (`if: needs.check-changes.outputs.backend_tasks`) can hide issues. When adding new backend code, expect to potentially fix unrelated lint issues that accumulated during frontend-only periods.
+
+### 12.6 Complete Fix Commits
+
+| Commit | Description |
+|--------|-------------|
+| `fix: resolve backend lint CI failures` | Restore/remove type ignores, fix pylint violations |
+| `fix(stacks): fix database migration and constants` | Add table creation to migration, add STACKS to NON_BITCOIN_CHAINS |
+| `fix(stacks): handle None returns from API methods` | Update return types for proper None handling |
+| `fix(stacks): resolve mypy type errors` | Fix return type annotations |
+
+### 12.7 Verification Process
+
+**Final verification before merge**:
+```bash
+# Run full lint suite (matches CI exactly)
+uv sync --group lint
+uv run make lint
+
+# Expected output for each tool:
+# - ruff: All checks passed!
+# - double-indent: (no output = pass)
+# - find-duplicate-constants: ✓ No duplicate byte constants found!
+# - mypy: Success: no issues found in 2131 source files
+# - pyright: 0 errors, 0 warnings, 0 informations
+# - pylint: (no output = pass)
+# - lint_checksum_addresses: ✅ Checked 1712 files
+```
+
+---
+
 *Document generated: January 2025*
 *Branch: feat/add-stacks-chain*
 *Tests: 100 passing*
