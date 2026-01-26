@@ -104,7 +104,10 @@ export function useLogin(): UseLoginReturn {
         username: payload.credentials.username,
       };
       const response = await unlock(data);
-      await colibriLogin(objectPick(payload.credentials, ['username', 'password']));
+      // Colibri login is best-effort - don't fail account creation if Colibri isn't ready
+      colibriLogin(objectPick(payload.credentials, ['username', 'password'])).catch((error) => {
+        logger.debug('Colibri login failed (service may still be starting):', error);
+      });
       return response;
     }
     catch (error: any) {
@@ -165,7 +168,10 @@ export function useLogin(): UseLoginReturn {
           title: 'login in',
         });
 
-        await colibriLogin(objectPick(credentials, ['username', 'password']));
+        // Colibri login is best-effort - don't fail login if Colibri isn't ready
+        colibriLogin(objectPick(credentials, ['username', 'password'])).catch((error) => {
+          logger.debug('Colibri login failed (service may still be starting):', error);
+        });
 
         result.settings.frontendSettings = await migrateAndSaveSettings(result.settings.frontendSettings);
 
