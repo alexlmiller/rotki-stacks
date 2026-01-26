@@ -11,6 +11,7 @@ from .constants import (
     CPT_ZEST,
     ZEST_BORROW_FUNCTIONS,
     ZEST_CONTRACTS,
+    ZEST_LIQUIDATION_FUNCTIONS,
     ZEST_REPAY_FUNCTIONS,
     ZEST_SUPPLY_FUNCTIONS,
     ZEST_WITHDRAW_FUNCTIONS,
@@ -133,5 +134,37 @@ def decode_zest_events(
                 event.notes = f'Repay {event.amount} {symbol} to Zest'
 
         log.debug(f'Decoded Zest repay in {transaction.tx_id}')
+
+    # Handle liquidation
+    elif function_name in ZEST_LIQUIDATION_FUNCTIONS:
+        for event in existing_events:
+            # The borrower loses collateral (if we track them)
+            if (
+                event.event_type == HistoryEventType.SPEND and
+                event.event_subtype == HistoryEventSubType.NONE
+            ):
+                event.event_type = HistoryEventType.LIQUIDATION
+                event.event_subtype = HistoryEventSubType.LIQUIDATE
+                event.counterparty = CPT_ZEST
+                symbol = event.asset.resolve_to_asset_with_symbol().symbol
+                if event.location_label == transaction.sender_address:
+                    # Liquidator spending to repay borrower's debt
+                    event.notes = f'Liquidate: pay {event.amount} {symbol} to cover debt on Zest'
+                else:
+                    # Borrower losing collateral
+                    event.notes = f'Liquidated: lost {event.amount} {symbol} collateral on Zest'
+            elif (
+                event.event_type == HistoryEventType.RECEIVE and
+                event.event_subtype == HistoryEventSubType.NONE and
+                event.location_label == transaction.sender_address
+            ):
+                # Liquidator receives collateral
+                event.event_type = HistoryEventType.LIQUIDATION
+                event.event_subtype = HistoryEventSubType.LIQUIDATE
+                event.counterparty = CPT_ZEST
+                symbol = event.asset.resolve_to_asset_with_symbol().symbol
+                event.notes = f'Liquidate: receive {event.amount} {symbol} collateral from Zest'
+
+        log.debug(f'Decoded Zest liquidation in {transaction.tx_id}')
 
     return []

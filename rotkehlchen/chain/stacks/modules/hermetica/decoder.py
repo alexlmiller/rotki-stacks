@@ -10,8 +10,11 @@ from rotkehlchen.logging import RotkehlchenLogsAdapter
 from .constants import (
     CPT_HERMETICA,
     HERMETICA_BURN_FUNCTIONS,
+    HERMETICA_CONFIRM_MINT_FUNCTIONS,
+    HERMETICA_CONFIRM_REDEEM_FUNCTIONS,
     HERMETICA_CONTRACTS,
     HERMETICA_MINT_FUNCTIONS,
+    HERMETICA_REQUEST_FUNCTIONS,
 )
 
 if TYPE_CHECKING:
@@ -47,8 +50,75 @@ def decode_hermetica_events(
 
     function_name = transaction.function_name
 
+    # Handle two-phase request operations (informational only)
+    if function_name in HERMETICA_REQUEST_FUNCTIONS:
+        # Request operations don't involve actual transfers, just track intent
+        for event in existing_events:
+            if event.location_label == transaction.sender_address:
+                event.event_type = HistoryEventType.INFORMATIONAL
+                event.event_subtype = HistoryEventSubType.NONE
+                event.counterparty = CPT_HERMETICA
+                if function_name == 'request-mint':
+                    event.notes = 'Request to mint USDh on Hermetica'
+                else:
+                    event.notes = 'Request to redeem USDh on Hermetica'
+
+        log.debug(f'Decoded Hermetica request in {transaction.tx_id}')
+
+    # Handle two-phase confirm mint (actual deposit with BRIDGE subtype)
+    elif function_name in HERMETICA_CONFIRM_MINT_FUNCTIONS:
+        for event in existing_events:
+            if (
+                event.event_type == HistoryEventType.SPEND and
+                event.event_subtype == HistoryEventSubType.NONE and
+                event.location_label == transaction.sender_address
+            ):
+                event.event_type = HistoryEventType.DEPOSIT
+                event.event_subtype = HistoryEventSubType.BRIDGE
+                event.counterparty = CPT_HERMETICA
+                symbol = event.asset.resolve_to_asset_with_symbol().symbol
+                event.notes = f'Confirm mint: deposit {event.amount} {symbol} to Hermetica'
+            elif (
+                event.event_type == HistoryEventType.RECEIVE and
+                event.event_subtype == HistoryEventSubType.NONE and
+                event.location_label == transaction.sender_address
+            ):
+                event.event_type = HistoryEventType.DEPOSIT
+                event.event_subtype = HistoryEventSubType.BRIDGE
+                event.counterparty = CPT_HERMETICA
+                symbol = event.asset.resolve_to_asset_with_symbol().symbol
+                event.notes = f'Confirm mint: receive {event.amount} {symbol} from Hermetica'
+
+        log.debug(f'Decoded Hermetica confirm mint in {transaction.tx_id}')
+
+    # Handle two-phase confirm redeem (actual withdrawal with BRIDGE subtype)
+    elif function_name in HERMETICA_CONFIRM_REDEEM_FUNCTIONS:
+        for event in existing_events:
+            if (
+                event.event_type == HistoryEventType.SPEND and
+                event.event_subtype == HistoryEventSubType.NONE and
+                event.location_label == transaction.sender_address
+            ):
+                event.event_type = HistoryEventType.WITHDRAWAL
+                event.event_subtype = HistoryEventSubType.BRIDGE
+                event.counterparty = CPT_HERMETICA
+                symbol = event.asset.resolve_to_asset_with_symbol().symbol
+                event.notes = f'Confirm redeem: return {event.amount} {symbol} to Hermetica'
+            elif (
+                event.event_type == HistoryEventType.RECEIVE and
+                event.event_subtype == HistoryEventSubType.NONE and
+                event.location_label == transaction.sender_address
+            ):
+                event.event_type = HistoryEventType.WITHDRAWAL
+                event.event_subtype = HistoryEventSubType.BRIDGE
+                event.counterparty = CPT_HERMETICA
+                symbol = event.asset.resolve_to_asset_with_symbol().symbol
+                event.notes = f'Confirm redeem: receive {event.amount} {symbol} from Hermetica'
+
+        log.debug(f'Decoded Hermetica confirm redeem in {transaction.tx_id}')
+
     # Handle minting USDh
-    if function_name in HERMETICA_MINT_FUNCTIONS:
+    elif function_name in HERMETICA_MINT_FUNCTIONS:
         for event in existing_events:
             if (
                 event.event_type == HistoryEventType.SPEND and

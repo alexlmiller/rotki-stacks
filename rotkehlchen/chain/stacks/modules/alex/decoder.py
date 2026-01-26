@@ -8,10 +8,15 @@ from rotkehlchen.history.events.structures.types import HistoryEventSubType, His
 from rotkehlchen.logging import RotkehlchenLogsAdapter
 
 from .constants import (
+    ALEX_BORROWING_FUNCTIONS,
     ALEX_CONTRACTS,
+    ALEX_LENDING_FUNCTIONS,
+    ALEX_LENDING_WITHDRAW_FUNCTIONS,
     ALEX_LIQUIDITY_FUNCTIONS,
+    ALEX_REPAY_FUNCTIONS,
     ALEX_STAKING_FUNCTIONS,
     ALEX_SWAP_FUNCTIONS,
+    ALEX_YIELD_FUNCTIONS,
     CPT_ALEX,
 )
 
@@ -199,6 +204,136 @@ def _decode_alex_staking(
         log.debug(f'Decoded ALEX claim rewards in {transaction.tx_id}')
 
 
+def _decode_alex_lending(
+        transaction: StacksTransaction,
+        base_tools: 'StacksDecoderTools',
+        existing_events: list[StacksEvent],
+) -> None:
+    """Decode ALEX lending pool transactions.
+
+    For supply: User deposits tokens to lending pool
+    For withdraw: User withdraws tokens from lending pool
+    """
+    function_name = transaction.function_name
+
+    if function_name == 'supply':
+        for event in existing_events:
+            if (
+                event.event_type == HistoryEventType.SPEND and
+                event.event_subtype == HistoryEventSubType.NONE and
+                event.location_label == transaction.sender_address
+            ):
+                event.event_type = HistoryEventType.DEPOSIT
+                event.event_subtype = HistoryEventSubType.DEPOSIT_ASSET
+                event.counterparty = CPT_ALEX
+                symbol = event.asset.resolve_to_asset_with_symbol().symbol
+                event.notes = f'Lend {event.amount} {symbol} to ALEX lending pool'
+            elif (
+                event.event_type == HistoryEventType.RECEIVE and
+                event.event_subtype == HistoryEventSubType.NONE and
+                event.location_label == transaction.sender_address
+            ):
+                event.event_type = HistoryEventType.DEPOSIT
+                event.event_subtype = HistoryEventSubType.RECEIVE_WRAPPED
+                event.counterparty = CPT_ALEX
+                symbol = event.asset.resolve_to_asset_with_symbol().symbol
+                event.notes = f'Receive {event.amount} {symbol} lending receipt from ALEX'
+
+        log.debug(f'Decoded ALEX lending supply in {transaction.tx_id}')
+
+    elif function_name == 'withdraw':
+        for event in existing_events:
+            if (
+                event.event_type == HistoryEventType.SPEND and
+                event.event_subtype == HistoryEventSubType.NONE and
+                event.location_label == transaction.sender_address
+            ):
+                event.event_type = HistoryEventType.WITHDRAWAL
+                event.event_subtype = HistoryEventSubType.RETURN_WRAPPED
+                event.counterparty = CPT_ALEX
+                symbol = event.asset.resolve_to_asset_with_symbol().symbol
+                event.notes = f'Return {event.amount} {symbol} lending receipt to ALEX'
+            elif (
+                event.event_type == HistoryEventType.RECEIVE and
+                event.event_subtype == HistoryEventSubType.NONE and
+                event.location_label == transaction.sender_address
+            ):
+                event.event_type = HistoryEventType.WITHDRAWAL
+                event.event_subtype = HistoryEventSubType.REMOVE_ASSET
+                event.counterparty = CPT_ALEX
+                symbol = event.asset.resolve_to_asset_with_symbol().symbol
+                event.notes = f'Withdraw {event.amount} {symbol} from ALEX lending pool'
+
+        log.debug(f'Decoded ALEX lending withdraw in {transaction.tx_id}')
+
+
+def _decode_alex_borrowing(
+        transaction: StacksTransaction,
+        base_tools: 'StacksDecoderTools',
+        existing_events: list[StacksEvent],
+) -> None:
+    """Decode ALEX borrowing transactions.
+
+    For borrow: User borrows tokens from lending pool
+    For repay: User repays borrowed tokens
+    """
+    function_name = transaction.function_name
+
+    if function_name == 'borrow':
+        for event in existing_events:
+            if (
+                event.event_type == HistoryEventType.RECEIVE and
+                event.event_subtype == HistoryEventSubType.NONE and
+                event.location_label == transaction.sender_address
+            ):
+                event.event_type = HistoryEventType.RECEIVE
+                event.event_subtype = HistoryEventSubType.GENERATE_DEBT
+                event.counterparty = CPT_ALEX
+                symbol = event.asset.resolve_to_asset_with_symbol().symbol
+                event.notes = f'Borrow {event.amount} {symbol} from ALEX'
+
+        log.debug(f'Decoded ALEX borrow in {transaction.tx_id}')
+
+    elif function_name == 'repay':
+        for event in existing_events:
+            if (
+                event.event_type == HistoryEventType.SPEND and
+                event.event_subtype == HistoryEventSubType.NONE and
+                event.location_label == transaction.sender_address
+            ):
+                event.event_type = HistoryEventType.SPEND
+                event.event_subtype = HistoryEventSubType.PAYBACK_DEBT
+                event.counterparty = CPT_ALEX
+                symbol = event.asset.resolve_to_asset_with_symbol().symbol
+                event.notes = f'Repay {event.amount} {symbol} to ALEX'
+
+        log.debug(f'Decoded ALEX repay in {transaction.tx_id}')
+
+
+def _decode_alex_yield(
+        transaction: StacksTransaction,
+        base_tools: 'StacksDecoderTools',
+        existing_events: list[StacksEvent],
+) -> None:
+    """Decode ALEX yield claim transactions.
+
+    For claim-yield: User claims yield from lending pool
+    """
+    for event in existing_events:
+        if (
+            event.event_type == HistoryEventType.RECEIVE and
+            event.event_subtype == HistoryEventSubType.NONE and
+            event.location_label == transaction.sender_address
+        ):
+            event.event_type = HistoryEventType.RECEIVE
+            event.event_subtype = HistoryEventSubType.REWARD
+            event.counterparty = CPT_ALEX
+            symbol = event.asset.resolve_to_asset_with_symbol().symbol
+            event.notes = f'Claim {event.amount} {symbol} yield from ALEX lending'
+
+    log.debug(f'Decoded ALEX yield claim in {transaction.tx_id}')
+
+
 def decode_alex_events(
         transaction: StacksTransaction,
         base_tools: 'StacksDecoderTools',
@@ -210,6 +345,9 @@ def decode_alex_events(
     - Swaps (swap-helper, swap-x-for-y, etc.)
     - Liquidity provision (add-to-position, reduce-position)
     - Staking (stake, unstake, claim-rewards)
+    - Lending (supply, withdraw)
+    - Borrowing (borrow, repay)
+    - Yield claims (claim-yield)
 
     Returns list of additional events to add (may modify existing_events in place).
     """
@@ -224,5 +362,14 @@ def decode_alex_events(
         _decode_alex_liquidity(transaction, base_tools, existing_events)
     elif function_name in ALEX_STAKING_FUNCTIONS:
         _decode_alex_staking(transaction, base_tools, existing_events)
+    elif (
+        function_name in ALEX_LENDING_FUNCTIONS or
+        function_name in ALEX_LENDING_WITHDRAW_FUNCTIONS
+    ):
+        _decode_alex_lending(transaction, base_tools, existing_events)
+    elif function_name in ALEX_BORROWING_FUNCTIONS or function_name in ALEX_REPAY_FUNCTIONS:
+        _decode_alex_borrowing(transaction, base_tools, existing_events)
+    elif function_name in ALEX_YIELD_FUNCTIONS:
+        _decode_alex_yield(transaction, base_tools, existing_events)
 
     return []  # We modify existing events in place

@@ -60,6 +60,14 @@ ZEST_REPAY_FUNCTIONS: Final = frozenset({
     ZEST_REPAY,
 })
 
+# Liquidation function names
+ZEST_LIQUIDATION_CALL: Final = 'liquidation-call'
+
+ZEST_LIQUIDATION_FUNCTIONS: Final = frozenset({
+    ZEST_LIQUIDATION_CALL,
+    ZEST_LIQUIDATE,
+})
+
 # All Zest contracts (v1 and v2)
 ZEST_CONTRACTS: Final = frozenset({
     # v1-0 contracts

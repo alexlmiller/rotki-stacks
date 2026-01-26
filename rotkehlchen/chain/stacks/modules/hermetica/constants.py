@@ -27,6 +27,12 @@ HERMETICA_STAKE: Final = 'stake'
 HERMETICA_UNSTAKE: Final = 'unstake'
 HERMETICA_CLAIM: Final = 'claim'
 
+# Two-phase minting/redemption function names
+HERMETICA_REQUEST_MINT: Final = 'request-mint'
+HERMETICA_CONFIRM_MINT: Final = 'confirm-mint'
+HERMETICA_REQUEST_REDEEM: Final = 'request-redeem'
+HERMETICA_CONFIRM_REDEEM: Final = 'confirm-redeem'
+
 # Minting-related function names
 HERMETICA_MINT_FUNCTIONS: Final = frozenset({
     HERMETICA_MINT,
@@ -36,6 +42,21 @@ HERMETICA_MINT_FUNCTIONS: Final = frozenset({
 HERMETICA_BURN_FUNCTIONS: Final = frozenset({
     HERMETICA_BURN,
     HERMETICA_REDEEM,
+})
+
+# Two-phase request functions (informational)
+HERMETICA_REQUEST_FUNCTIONS: Final = frozenset({
+    HERMETICA_REQUEST_MINT,
+    HERMETICA_REQUEST_REDEEM,
+})
+
+# Two-phase confirm functions (actual transfers)
+HERMETICA_CONFIRM_MINT_FUNCTIONS: Final = frozenset({
+    HERMETICA_CONFIRM_MINT,
+})
+
+HERMETICA_CONFIRM_REDEEM_FUNCTIONS: Final = frozenset({
+    HERMETICA_CONFIRM_REDEEM,
 })
 
 # Staking function names

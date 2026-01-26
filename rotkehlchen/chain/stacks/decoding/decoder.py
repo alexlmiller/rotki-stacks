@@ -27,6 +27,7 @@ from rotkehlchen.types import Location, StacksAddress, SupportedBlockchain
 
 from ..modules.alex.decoder import decode_alex_events, is_alex_transaction
 from ..modules.allbridge.decoder import decode_allbridge_events, is_allbridge_transaction
+from ..modules.arkadiko.decoder import decode_arkadiko_events, is_arkadiko_transaction
 from ..modules.bitflow.decoder import decode_bitflow_events, is_bitflow_transaction
 from ..modules.hermetica.decoder import decode_hermetica_events, is_hermetica_transaction
 from ..modules.pox.decoder import decode_pox_events, is_pox_transaction
@@ -434,6 +435,15 @@ class StacksTransactionDecoder(TransactionDecoder[StacksTransaction, StacksDecod
         # Hermetica synthetic assets operations
         elif is_hermetica_transaction(transaction):
             additional = decode_hermetica_events(
+                transaction=transaction,
+                base_tools=self.base,
+                existing_events=events,
+            )
+            events.extend(additional)
+
+        # Arkadiko CDP protocol operations
+        elif is_arkadiko_transaction(transaction):
+            additional = decode_arkadiko_events(
                 transaction=transaction,
                 base_tools=self.base,
                 existing_events=events,
