@@ -33,3 +33,7 @@ frontend/logs
 colibri/target
 **/.claude/
 out
+
+# Dev restart logs
+colibri.log
+*_restart.log
