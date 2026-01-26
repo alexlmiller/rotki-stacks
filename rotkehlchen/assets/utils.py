@@ -489,6 +489,10 @@ def get_or_create_stacks_token(
     # Add to global DB
     GlobalDBHandler.add_asset(token)
 
+    # Add to user DB so foreign key constraints are satisfied
+    with userdb.user_write() as write_cursor:
+        userdb.add_asset_identifiers(write_cursor, [token.identifier])
+
     return token
 
 
