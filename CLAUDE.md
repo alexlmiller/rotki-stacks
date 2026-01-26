@@ -36,6 +36,23 @@ git push origin develop
 git push upstream develop
 ```
 
+### Repository Setup
+
+After cloning, configure the GitHub CLI to target the fork (not upstream):
+
+```bash
+gh repo set-default alexlmiller/rotki
+```
+
+Verify with:
+
+```bash
+gh repo set-default --view
+# Should show: alexlmiller/rotki
+```
+
+This prevents `gh pr create` from accidentally targeting upstream.
+
 ## Development Commands
 
 ### Prerequisites
