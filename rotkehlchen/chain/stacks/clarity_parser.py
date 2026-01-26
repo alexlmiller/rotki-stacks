@@ -29,7 +29,7 @@ log = RotkehlchenLogsAdapter(logger)
 
 
 # Type alias for parsed Clarity values
-ClarityValue = int | str | bool | bytes | None | list['ClarityValue'] | dict[str, 'ClarityValue']
+ClarityValue = int | str | bool | bytes | list['ClarityValue'] | dict[str, 'ClarityValue'] | None
 
 
 class TokenType(Enum):
@@ -164,7 +164,7 @@ class ClarityLexer:
                     )
 
             elif char == '0' and self.pos + 1 < self.length and self.text[self.pos + 1] == 'x':
-                # Buffer (hex)
+                # Buffer (hex)  # noqa: ERA001
                 match = BUFF_PATTERN.match(self.text, self.pos)
                 if match:
                     tokens.append(Token(TokenType.BUFF, match.group(1), start_pos))
@@ -390,7 +390,8 @@ class ClarityParser:
     def _unescape_string(s: str) -> str:
         """Unescape a Clarity string value."""
         # Handle common escape sequences
-        return s.replace('\\n', '\n').replace('\\t', '\t').replace('\\\\', '\\').replace('\\"', '"')
+        result = s.replace('\\n', '\n').replace('\\t', '\t')
+        return result.replace('\\\\', '\\').replace('\\"', '"')
 
 
 def parse_clarity_repr(repr_str: str) -> ClarityValue:
@@ -449,13 +450,13 @@ def get_principal_from_repr(repr_str: str) -> str | None:
         return repr_str[1:]
 
     # Handle unquoted format: SP...
-    if repr_str.startswith('SP') or repr_str.startswith('ST'):
+    if repr_str.startswith(('SP', 'ST')):
         # Extract just the principal part (may have contract suffix)
         match = PRINCIPAL_PATTERN.match(repr_str)
         if match:
             return match.group(1)
 
     value = parse_clarity_repr_safe(repr_str)
-    if isinstance(value, str) and (value.startswith('SP') or value.startswith('ST')):
+    if isinstance(value, str) and value.startswith(('SP', 'ST')):
         return value
     return None

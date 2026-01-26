@@ -1,7 +1,7 @@
 """Stacks blockchain types and data structures."""
 from dataclasses import dataclass
 from enum import auto
-from typing import TYPE_CHECKING, Any, TypedDict
+from typing import TYPE_CHECKING, TypedDict
 
 from rotkehlchen.types import StacksAddress, Timestamp
 from rotkehlchen.utils.mixins.enums import DBCharEnumMixIn

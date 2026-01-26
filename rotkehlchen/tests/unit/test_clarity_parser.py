@@ -4,8 +4,6 @@ import pytest
 from rotkehlchen.chain.stacks.clarity_parser import (
     ClarityLexer,
     ClarityLexerError,
-    ClarityParser,
-    ClarityParserError,
     TokenType,
     get_principal_from_repr,
     get_uint_from_repr,
@@ -215,7 +213,7 @@ class TestClarityParser:
     def test_parse_list_of_tuples(self):
         """Test parsing send-many style recipient list."""
         result = parse_clarity_repr(
-            '(list (tuple (to \'SP123) (ustx u100)) (tuple (to \'SP456) (ustx u200)))',
+            "(list (tuple (to 'SP123) (ustx u100)) (tuple (to 'SP456) (ustx u200)))",
         )
         assert result == [
             {'to': 'SP123', 'ustx': 100},
@@ -248,10 +246,10 @@ class TestClarityParser:
 
     def test_parse_complex_send_many(self):
         """Test parsing a complete send-many recipients structure."""
-        repr_str = '''(list
+        repr_str = """(list
             (tuple (to 'SP1ADDR1) (ustx u1000000) (memo 0x68656c6c6f))
             (tuple (to 'SP2ADDR2) (ustx u2000000) (memo 0x776f726c64))
-        )'''
+        )"""
         result = parse_clarity_repr(repr_str)
         assert len(result) == 2
         assert result[0]['to'] == 'SP1ADDR1'
@@ -299,8 +297,8 @@ class TestHelperFunctions:
             'SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9'
 
     def test_get_principal_with_contract(self):
-        assert get_principal_from_repr("'SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.sbtc-token") == \
-            'SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.sbtc-token'
+        result = get_principal_from_repr("'SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.sbtc-token")
+        assert result == 'SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.sbtc-token'
 
     def test_get_principal_invalid(self):
         assert get_principal_from_repr('u100') is None

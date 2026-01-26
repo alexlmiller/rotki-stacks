@@ -40,11 +40,12 @@ class DBStacksTx(DBCommonTx[StacksAddress, StacksTransaction, str, StacksTransac
         }
 
         # Extract amount from various arg names (store as string to avoid overflow)
-        if (amount := tx.get_uint_arg('amount-ustx')) is not None:
-            indexed['arg_amount_ustx'] = str(amount)
-        elif (amount := tx.get_uint_arg('increase-by')) is not None:
-            indexed['arg_amount_ustx'] = str(amount)
-        elif (amount := tx.get_uint_arg('ustx')) is not None:
+        amount = (
+            tx.get_uint_arg('amount-ustx') or
+            tx.get_uint_arg('increase-by') or
+            tx.get_uint_arg('ustx')
+        )
+        if amount is not None:
             indexed['arg_amount_ustx'] = str(amount)
         elif tx.get_arg('amount-ustx') is not None:
             log.warning(f'Failed to parse amount-ustx argument in tx {tx.tx_id}')
@@ -52,9 +53,8 @@ class DBStacksTx(DBCommonTx[StacksAddress, StacksTransaction, str, StacksTransac
             log.warning(f'Failed to parse increase-by argument in tx {tx.tx_id}')
 
         # Extract recipient
-        if (recipient := tx.get_principal_arg('recipient')) is not None:
-            indexed['arg_recipient'] = recipient
-        elif (recipient := tx.get_principal_arg('to')) is not None:
+        recipient = tx.get_principal_arg('recipient') or tx.get_principal_arg('to')
+        if recipient is not None:
             indexed['arg_recipient'] = recipient
         elif tx.get_arg('recipient') is not None:
             log.warning(f'Failed to parse recipient argument in tx {tx.tx_id}')

@@ -68,7 +68,6 @@ if TYPE_CHECKING:
         ChecksumEvmAddress,
         EVMTxHash,
         SolanaAddress,
-        StacksAddress,
     )
 
 logger = logging.getLogger(__name__)
