@@ -174,6 +174,11 @@ class StacksManager(ChainManagerWithTransactions[StacksAddress]):
 
             # Fetch token metadata from Hiro API for proper name/symbol
             metadata = self.node_inquirer.api_client.get_token_metadata(contract_id)
+            log.debug(
+                f'Fetched metadata for {contract_id}: '
+                f'name={metadata.name if metadata else None}, '
+                f'symbol={metadata.symbol if metadata else None}',
+            )
 
             try:
                 token = get_or_create_stacks_token(

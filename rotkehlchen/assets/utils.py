@@ -460,13 +460,19 @@ def get_or_create_stacks_token(
     # Try to load existing token
     try:
         existing_token = StacksToken(identifier)
+        log.debug(
+            f'Found existing Stacks token {identifier}: '
+            f'name={existing_token.name!r}, symbol={existing_token.symbol!r}',
+        )
         # Check if we should update incomplete metadata
         needs_update = False
         if (name and existing_token.name and
                 existing_token.name.startswith('Unknown Stacks Token')):
             needs_update = True
+            log.debug(f'Token {identifier} needs name update')
         if symbol and existing_token.symbol == 'UNKNOWN':
             needs_update = True
+            log.debug(f'Token {identifier} needs symbol update')
 
         if needs_update and (name or symbol):
             # Update the token with better metadata
@@ -501,6 +507,10 @@ def get_or_create_stacks_token(
     final_cryptocompare = cryptocompare or (curated.cryptocompare if curated else None)
 
     # Create new token with resolved values
+    log.debug(
+        f'Creating new Stacks token {contract_id}: '
+        f'name={final_name!r}, symbol={final_symbol!r}',
+    )
     token = StacksToken.initialize(
         contract_id=contract_id,
         token_kind=token_kind,
