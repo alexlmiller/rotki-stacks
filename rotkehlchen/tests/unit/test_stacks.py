@@ -400,7 +400,6 @@ class TestStacksManager:
         from rotkehlchen.chain.stacks.manager import StacksManager
         from rotkehlchen.chain.stacks.node_inquirer import StacksInquirer
         from rotkehlchen.constants import DEFAULT_BALANCE_LABEL
-        from rotkehlchen.constants.assets import A_STX
         from rotkehlchen.fval import FVal
 
         mock_gm = MagicMock()
@@ -566,7 +565,6 @@ class TestStacksTokenBalanceParsing:
         from rotkehlchen.chain.stacks.manager import StacksManager
         from rotkehlchen.chain.stacks.node_inquirer import StacksInquirer
         from rotkehlchen.constants import DEFAULT_BALANCE_LABEL
-        from rotkehlchen.constants.assets import A_STX
         from rotkehlchen.fval import FVal
 
         mock_gm = MagicMock()

@@ -59,7 +59,7 @@ class StacksInquirer:
             log.error(f'Failed to get STX balance for {address}')
             raise
 
-        if not response:
+        if response is None or len(response) == 0:
             # Empty response means no balance data (new/empty address)
             return FVal(0)
 
