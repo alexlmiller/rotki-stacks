@@ -475,15 +475,17 @@ def get_or_create_stacks_token(
         )
         has_incomplete_symbol = (
             not existing_token.symbol or
-            existing_token.symbol == 'UNKNOWN' or
-            existing_token.symbol == ''
+            existing_token.symbol in {'UNKNOWN', ''}
         )
         if name and has_incomplete_name:
             needs_update = True
             log.debug(f'Token {identifier} needs name update: {existing_token.name!r} -> {name!r}')
         if symbol and has_incomplete_symbol:
             needs_update = True
-            log.debug(f'Token {identifier} needs symbol update: {existing_token.symbol!r} -> {symbol!r}')
+            log.debug(
+                f'Token {identifier} needs symbol update: '
+                f'{existing_token.symbol!r} -> {symbol!r}',
+            )
 
         if needs_update and (name or symbol):
             # Update the token with better metadata
@@ -502,7 +504,8 @@ def get_or_create_stacks_token(
             AssetResolver.clean_memory_cache(identifier)
             # Return fresh token with updated data
             return StacksToken(identifier)
-        return existing_token
+        else:
+            return existing_token
     except UnknownAsset:
         pass  # Token doesn't exist, create it
 
