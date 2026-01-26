@@ -664,6 +664,8 @@ class GlobalDBHandler:
                 query = 'SELECT decimals, protocol, address, token_kind, chain from evm_tokens WHERE identifier=?'  # noqa: E501
             elif asset_type == AssetType.SOLANA_TOKEN:
                 query = 'SELECT decimals, protocol, address, token_kind, NULL from solana_tokens WHERE identifier=?'  # noqa: E501
+            elif asset_type == AssetType.STACKS_TOKEN:
+                query = 'SELECT decimals, protocol, contract_id, token_kind, NULL from stacks_tokens WHERE identifier=?'  # noqa: E501
 
             if query is not None:
                 if (token_result := cursor.execute(query, (saved_identifier,)).fetchone()) is None:
