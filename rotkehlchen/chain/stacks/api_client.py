@@ -55,16 +55,23 @@ class StacksApiClient(ExternalServiceWithRecommendedApiKey):
             'Content-Type': 'application/json',
         })
 
+    def __del__(self) -> None:
+        """Clean up the session when the client is garbage collected."""
+        if hasattr(self, 'session'):
+            self.session.close()
+
     def _make_request(
             self,
             endpoint: str,
             params: dict[str, Any] | None = None,
+            base_url: str | None = None,
     ) -> dict[str, Any] | None:
         """Make a request to the Hiro API with rate limiting and retry logic.
 
         Args:
             endpoint: API endpoint path (e.g., 'extended/v1/address/{addr}/balances')
             params: Optional query parameters
+            base_url: Optional base URL override (defaults to self.base_url)
 
         Returns:
             JSON response as a dictionary
@@ -79,7 +86,7 @@ class StacksApiClient(ExternalServiceWithRecommendedApiKey):
         elif 'x-api-key' in self.session.headers:
             del self.session.headers['x-api-key']
 
-        url = f'{self.base_url}/{endpoint}'
+        url = f'{base_url or self.base_url}/{endpoint}'
         backoff = INITIAL_BACKOFF
         last_error: Exception | None = None
 
@@ -237,54 +244,32 @@ class StacksApiClient(ExternalServiceWithRecommendedApiKey):
             This uses the Hiro Token Metadata API which is separate from the main API.
             The metadata includes name, symbol, decimals, and image URLs.
         """
-        url = f'{HIRO_METADATA_API_URL}/ft/{contract_principal}'
-
-        # Update headers with API key
-        api_key = self._get_api_key()
-        headers = {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-        }
-        if api_key:
-            headers['x-api-key'] = api_key
-
         try:
-            response = requests.get(url, headers=headers, timeout=DEFAULT_TIMEOUT)
-
-            if response.status_code == 404:
-                log.debug(f'No metadata found for token {contract_principal}')
-                return None
-
-            if response.status_code != 200:
-                log.warning(
-                    f'Failed to fetch metadata for {contract_principal}: '
-                    f'{response.status_code} {response.text}',
-                )
-                return None
-
-            data = response.json()
-
-            # Extract metadata from response
-            name = data.get('name')
-            symbol = data.get('symbol')
-            decimals = data.get('decimals')
-
-            if not name or not symbol:
-                log.debug(
-                    f'Incomplete metadata for {contract_principal}: '
-                    f'name={name}, symbol={symbol}',
-                )
-                return None
-
-            return StacksTokenMetadata(
-                name=name,
-                symbol=symbol,
-                decimals=decimals if decimals is not None else 6,  # Default to 6 like STX
+            response = self._make_request(
+                endpoint=f'ft/{contract_principal}',
+                base_url=HIRO_METADATA_API_URL,
             )
-
-        except requests.RequestException as e:
+        except RemoteError as e:
             log.warning(f'Error fetching token metadata for {contract_principal}: {e}')
             return None
-        except (KeyError, ValueError) as e:
-            log.warning(f'Error parsing token metadata for {contract_principal}: {e}')
+
+        if response is None:
+            log.debug(f'No metadata found for token {contract_principal}')
             return None
+
+        name = response.get('name')
+        symbol = response.get('symbol')
+        decimals = response.get('decimals')
+
+        if not name or not symbol:
+            log.debug(
+                f'Incomplete metadata for {contract_principal}: '
+                f'name={name}, symbol={symbol}',
+            )
+            return None
+
+        return StacksTokenMetadata(
+            name=name,
+            symbol=symbol,
+            decimals=decimals if decimals is not None else 6,  # Default to 6 like STX
+        )
