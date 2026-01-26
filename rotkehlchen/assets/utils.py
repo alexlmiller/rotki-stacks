@@ -468,15 +468,12 @@ def get_or_create_stacks_token(
         # Update if we have better metadata and existing token has incomplete data
         needs_update = False
         has_incomplete_name = (
-            not existing_token.name or
+            existing_token.name == '' or
             existing_token.name.startswith('Unknown Stacks Token') or
             existing_token.name.startswith('Stacks Token:') or
             existing_token.name == identifier
         )
-        has_incomplete_symbol = (
-            not existing_token.symbol or
-            existing_token.symbol in {'UNKNOWN', ''}
-        )
+        has_incomplete_symbol = existing_token.symbol in {'UNKNOWN', ''}
         if name and has_incomplete_name:
             needs_update = True
             log.debug(f'Token {identifier} needs name update: {existing_token.name!r} -> {name!r}')
