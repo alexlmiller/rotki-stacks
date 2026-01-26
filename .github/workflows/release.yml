@@ -1,0 +1,237 @@
+name: Rotki-Stacks Release
+
+on:
+  push:
+    tags:
+      - 'v*-stacks.*'  # Matches v1.41.3-stacks.1, v1.41.3-stacks.2, etc.
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false  # Don't cancel releases
+
+permissions: {}
+
+jobs:
+  extract-version:
+    name: Extract version from tag
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.extract.outputs.version }}
+      version_tag: ${{ steps.extract.outputs.version_tag }}
+      upstream_version: ${{ steps.extract.outputs.upstream_version }}
+    steps:
+      - name: Extract version
+        id: extract
+        run: |
+          # Extract full version from tag (e.g., v1.41.3-stacks.2 → 1.41.3-stacks.2)
+          VERSION_TAG="${GITHUB_REF#refs/tags/}"
+          VERSION="${VERSION_TAG#v}"
+
+          # Extract upstream version (e.g., 1.41.3-stacks.2 → 1.41.3)
+          UPSTREAM_VERSION="${VERSION%%-stacks.*}"
+
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "version_tag=${VERSION_TAG}" >> "$GITHUB_OUTPUT"
+          echo "upstream_version=${UPSTREAM_VERSION}" >> "$GITHUB_OUTPUT"
+
+          echo "📦 Version: ${VERSION}"
+          echo "🏷️ Tag: ${VERSION_TAG}"
+          echo "⬆️ Upstream: ${UPSTREAM_VERSION}"
+
+  create-release:
+    name: Create GitHub Release
+    needs: extract-version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: rotki-stacks ${{ needs.extract-version.outputs.version }}
+          body: |
+            # rotki-stacks ${{ needs.extract-version.outputs.version }}
+
+            Stacks-enabled fork of rotki based on upstream v${{ needs.extract-version.outputs.upstream_version }}.
+
+            ## Installation
+
+            ### Docker (Recommended)
+            ```bash
+            docker pull alexlmiller/rotki-stacks:${{ needs.extract-version.outputs.version }}
+            docker run -p 80:80 -v rotki-data:/data alexlmiller/rotki-stacks:${{ needs.extract-version.outputs.version }}
+            ```
+
+            Access at: http://localhost
+
+            ### From Source
+            See [dev-environment.md](https://github.com/alexlmiller/rotki-stacks/blob/main/docs/stacks-chain/dev-environment.md)
+
+            ## Documentation
+            - [Stacks Integration PRD](https://github.com/alexlmiller/rotki-stacks/blob/main/docs/stacks-chain/stacks-integration-prd.md)
+            - [Fork Maintenance](https://github.com/alexlmiller/rotki-stacks/blob/main/docs/stacks-chain/fork-maintenance-plan.md)
+
+            ## What's New
+
+            Update release notes above this line with:
+            - New features
+            - Bug fixes
+            - Upstream sync details
+            - Known issues
+          draft: false
+          prerelease: false
+          generate_release_notes: false
+
+  build-docker:
+    name: Build Docker image (${{ matrix.platform.name }})
+    needs: extract-version
+    runs-on: ${{ matrix.platform.runner }}
+    environment: docker
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - name: linux/amd64
+            runner: ubuntu-24.04
+          - name: linux/arm64
+            runner: ubuntu-24.04  # Will use QEMU if ARM runner not available
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Prepare platform name
+        id: prepare
+        run: |
+          platform=${{ matrix.platform.name }}
+          echo "PLATFORM_PAIR=${platform//\//-}" >> "$GITHUB_ENV"
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USER }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: alexlmiller/rotki-stacks
+
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: ${{ matrix.platform.name }}
+          provenance: mode=max
+          build-args: |
+            REVISION=${{ github.sha }}
+            ROTKI_VERSION=${{ needs.extract-version.outputs.version }}
+          labels: ${{ steps.meta.outputs.labels }}
+          tags: alexlmiller/rotki-stacks
+          outputs: type=image,name=alexlmiller/rotki-stacks,push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Export digest
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          mkdir -p /tmp/digests
+          digest="${DIGEST}"
+          touch "/tmp/digests/${digest#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ env.PLATFORM_PAIR }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  docker-merge:
+    name: Merge Docker manifests and publish
+    needs:
+      - extract-version
+      - build-docker
+    runs-on: ubuntu-latest
+    environment: docker
+    permissions:
+      contents: read
+    steps:
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: digests-*
+          merge-multiple: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USER }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: alexlmiller/rotki-stacks
+          tags: |
+            type=raw,value=${{ needs.extract-version.outputs.version }}
+            type=raw,value=latest
+
+      - name: Create manifest list and push
+        working-directory: /tmp/digests
+        run: |
+          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf 'alexlmiller/rotki-stacks@sha256:%s ' *)
+
+      - name: Inspect image
+        run: |
+          docker buildx imagetools inspect alexlmiller/rotki-stacks:${{ needs.extract-version.outputs.version }}
+          docker buildx imagetools inspect alexlmiller/rotki-stacks:latest
+
+  notify-success:
+    name: Release complete
+    if: ${{ always() && needs.docker-merge.result == 'success' }}
+    needs: [extract-version, create-release, docker-merge]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Summary
+        run: |
+          echo "## ✅ Release Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${{ needs.extract-version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Tag:** ${{ needs.extract-version.outputs.version_tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Docker Images" >> $GITHUB_STEP_SUMMARY
+          echo "- \`alexlmiller/rotki-stacks:${{ needs.extract-version.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`alexlmiller/rotki-stacks:latest\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### GitHub Release" >> $GITHUB_STEP_SUMMARY
+          echo "https://github.com/${{ github.repository }}/releases/tag/${{ needs.extract-version.outputs.version_tag }}" >> $GITHUB_STEP_SUMMARY

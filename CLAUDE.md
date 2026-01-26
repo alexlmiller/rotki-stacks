@@ -43,6 +43,7 @@ git checkout develop && git merge upstream-sync && git push origin develop
 |----------|---------|-------------|
 | `CLAUDE.md` | Entry point, quick reference | Always loaded |
 | `docs/stacks-chain/fork-maintenance-plan.md` | Upstream sync, releases, branch management | **Syncing upstream, tagging releases, fork health checks** |
+| `docs/stacks-chain/release-process.md` | Creating releases, Docker publishing | **Cutting releases, troubleshooting CI, rollback** |
 | `docs/stacks-chain/dev-environment.md` | Running dev environment correctly | **Dev setup issues, CORS errors, service startup** |
 | `docs/stacks-chain/stacks-integration-prd.md` | WHAT to build (features, scope) | Planning new Stacks features |
 | `.claude/docs/architecture/quick-reference.md` | HOW patterns (common tasks) | During implementation |

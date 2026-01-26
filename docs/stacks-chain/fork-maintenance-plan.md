@@ -129,6 +129,38 @@ Format: `v{upstream}-stacks.{suffix}`
 3. Tag release
 4. Create GitHub Release (document upstream version, Stacks features, known issues)
 
+### Releasing
+
+**Automated CI** creates releases when you push version tags.
+
+**Quick release:**
+```bash
+# From main branch, after merging develop
+git tag v1.41.3-stacks.2 -m "Release: upstream sync + bug fixes"
+git push origin v1.41.3-stacks.2
+```
+
+CI automatically:
+- Creates GitHub Release with template
+- Builds Docker images (amd64 + arm64)
+- Pushes to Docker Hub with version + `latest` tags
+
+**After release:**
+```bash
+# Update release notes
+gh release edit v1.41.3-stacks.2
+
+# Verify images
+docker pull alexlmiller/rotki-stacks:v1.41.3-stacks.2
+docker manifest inspect alexlmiller/rotki-stacks:latest
+```
+
+**Full guide:** See `docs/stacks-chain/release-process.md` for:
+- Prerequisites (Docker Hub secrets)
+- Detailed steps
+- Troubleshooting
+- Rollback procedures
+
 ---
 
 ## Part 2: Operational Guidance
