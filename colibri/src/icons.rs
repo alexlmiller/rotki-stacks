@@ -426,7 +426,7 @@ pub async fn query_icon_remotely(
         "TIA" => Some(("https://raw.githubusercontent.com/rotki/data/develop/assets/icons/tia.png", "png")),
         "DOT" => Some(("https://raw.githubusercontent.com/rotki/data/develop/assets/icons/dot.png", "png")),
         "SOL" => Some(("https://raw.githubusercontent.com/SmolDapp/tokenAssets/main/tokens/1151111081099710/So11111111111111111111111111111111111111112/logo.svg", "svg")),
-        "STX" => Some(("https://cryptologos.cc/logos/stacks-stx-logo.svg", "svg")),
+        "STX" => Some(("https://raw.githubusercontent.com/alexlmiller/rotki/feat/add-stacks-chain/rotkehlchen/data/icons/stx.svg", "svg")),
         "eip155:1/erc20:0x455e53CBB86018Ac2B8092FdCd39d8444aFFC3F6" => Some(("https://raw.githubusercontent.com/SmolDapp/tokenAssets/refs/heads/main/chains/1101/logo.svg", "svg")),  // polygon
         _ => None
     } {

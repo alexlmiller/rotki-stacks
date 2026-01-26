@@ -139,6 +139,11 @@ export function useLogin(): UseLoginReturn {
         rawSettings.frontendSettings = await migrateAndSaveSettings(rawSettings.frontendSettings);
         exchanges = activeExchanges;
         settings = UserSettingsModel.parse(rawSettings);
+
+        // Ensure Colibri is also logged in (it may have restarted)
+        if (credentials.password) {
+          await colibriLogin(objectPick(credentials, ['username', 'password']));
+        }
       }
       else {
         if (!credentials.username)
