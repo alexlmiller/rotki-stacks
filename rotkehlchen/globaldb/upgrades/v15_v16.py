@@ -22,6 +22,7 @@ def migrate_to_v16(connection: 'DBConnection', progress_handler: 'DBUpgradeProgr
 
     - Populates stacks_tokens table with well-known SIP-10 tokens
     - Adds corresponding entries to assets and common_asset_details tables
+    - Sets swapped_for on STX-2 (Blockstack) to point to STX (Stacks)
 
     This upgrade takes place in v1.43.0"""
 
@@ -80,5 +81,19 @@ def migrate_to_v16(connection: 'DBConnection', progress_handler: 'DBUpgradeProgr
         )
 
         log.debug(f'Added {len(CURATED_STACKS_TOKENS)} curated Stacks tokens to the database')
+
+    @progress_step('Update STX-2 (Blockstack) to point to STX (Stacks)')
+    def _update_stx_swapped_for(write_cursor: 'DBCursor') -> None:
+        """Set swapped_for on STX-2 (Blockstack) to point to STX (Stacks).
+
+        The old Blockstack asset (STX-2) was renamed to Stacks (STX). This ensures
+        that any exchange balances or historical data referencing STX-2 will be
+        consolidated with the new STX asset.
+        """
+        write_cursor.execute(
+            'UPDATE common_asset_details SET swapped_for=? WHERE identifier=?',
+            ('STX', 'STX-2'),
+        )
+        log.debug('Updated STX-2 (Blockstack) swapped_for to point to STX (Stacks)')
 
     perform_globaldb_upgrade_steps(connection, progress_handler)
