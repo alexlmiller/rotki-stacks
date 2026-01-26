@@ -1,5 +1,5 @@
 import type { AssetMap } from '@/types/asset';
-import { type AssetCollection, type AssetInfo, transformCase } from '@rotki/common';
+import { type AssetCollection, type AssetInfo, isStacksTokenIdentifier, transformCase } from '@rotki/common';
 import { useAssetInfoApi } from '@/composables/api/assets/info';
 import { useItemCache } from '@/composables/item-cache';
 import { useNotificationsStore } from '@/store/notifications';
@@ -44,7 +44,9 @@ export const useAssetCacheStore = defineStore('assets/cache', () => {
             ...assetCollections,
           });
 
-          const item = assets[transformCase(key, true)];
+          // Don't transform Stacks identifiers - they contain underscores that must be preserved
+          const lookupKey = isStacksTokenIdentifier(key) ? key : transformCase(key, true);
+          const item = assets[lookupKey];
           yield { item, key };
         }
       };
