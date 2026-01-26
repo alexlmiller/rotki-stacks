@@ -13,7 +13,10 @@ log = RotkehlchenLogsAdapter(logger)
 
 
 @enter_exit_debug_log(name='globaldb v16->v17 upgrade')
-def migrate_to_v17(connection: 'DBConnection', progress_handler: 'DBUpgradeProgressHandler') -> None:
+def migrate_to_v17(
+        connection: 'DBConnection',
+        progress_handler: 'DBUpgradeProgressHandler',
+) -> None:
     """This globalDB upgrade fixes Stacks token identifiers.
 
     The original migration (v15->v16) created identifiers with spaces in the token type
@@ -46,7 +49,7 @@ def migrate_to_v17(connection: 'DBConnection', progress_handler: 'DBUpgradeProgr
                 WHERE identifier LIKE 'stacks/sip10 fungible:%'
                 AND REPLACE(identifier, 'stacks/sip10 fungible:', 'stacks/sip10_fungible:')
                     IN (SELECT identifier FROM {table} WHERE identifier LIKE 'stacks/sip10_fungible:%')
-                """  # noqa: E501
+                """,  # noqa: E501
             )
             log.debug(f'Deleted {write_cursor.rowcount} duplicate entries from {table}')
 
@@ -58,7 +61,7 @@ def migrate_to_v17(connection: 'DBConnection', progress_handler: 'DBUpgradeProgr
                 UPDATE {table}
                 SET identifier = REPLACE(identifier, 'stacks/sip10 fungible:', 'stacks/sip10_fungible:')
                 WHERE identifier LIKE 'stacks/sip10 fungible:%'
-                """  # noqa: E501
+                """,  # noqa: E501
             )
             log.debug(f'Updated {write_cursor.rowcount} sip10_fungible identifiers in {table}')
 
@@ -70,7 +73,7 @@ def migrate_to_v17(connection: 'DBConnection', progress_handler: 'DBUpgradeProgr
                 WHERE identifier LIKE 'stacks/sip10 nft:%'
                 AND REPLACE(identifier, 'stacks/sip10 nft:', 'stacks/sip10_nft:')
                     IN (SELECT identifier FROM {table} WHERE identifier LIKE 'stacks/sip10_nft:%')
-                """  # noqa: E501
+                """,
             )
 
         for table in ('assets', 'common_asset_details', 'stacks_tokens'):
@@ -79,7 +82,7 @@ def migrate_to_v17(connection: 'DBConnection', progress_handler: 'DBUpgradeProgr
                 UPDATE {table}
                 SET identifier = REPLACE(identifier, 'stacks/sip10 nft:', 'stacks/sip10_nft:')
                 WHERE identifier LIKE 'stacks/sip10 nft:%'
-                """  # noqa: E501
+                """,
             )
 
         # Re-enable foreign key checks
