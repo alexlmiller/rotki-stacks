@@ -21,19 +21,36 @@ This fork adds first-class Stacks blockchain support. See `.claude/docs/stacks-i
 - Never push to or create issues/PRs on upstream without explicit permission
 - Use `origin` (the fork) for all git operations, not `upstream`
 
-After cloning, configure: `gh repo set-default alexlmiller/rotki`
+After cloning, configure: `gh repo set-default alexlmiller/rotki-stacks`
+
+### Fork Maintenance
+
+**When working on fork operations**, always consult `docs/stacks-chain/fork-maintenance-plan.md`:
+- Syncing with upstream rotki/rotki
+- Creating releases and version tags
+- Resolving merge conflicts
+- Branch cleanup and health monitoring
+
+**Quick sync command** (see fork-maintenance-plan.md for full process):
+```bash
+git checkout upstream-sync && git fetch upstream && git reset --hard upstream/develop && git push origin upstream-sync --force
+git checkout develop && git merge upstream-sync && git push origin develop
+```
 
 ## Documentation Hierarchy
 
 | Document | Purpose | When to Use |
 |----------|---------|-------------|
 | `CLAUDE.md` | Entry point, quick reference | Always loaded |
-| `.claude/docs/stacks-integration-prd.md` | WHAT to build | Before starting any phase |
-| `.claude/docs/architecture/quick-reference.md` | HOW patterns | During implementation |
-| `.claude/docs/architecture/*.md` | Detailed guides | Phase-specific work |
-| `.claude/rules/*.md` | Detailed conventions | When writing code |
+| `docs/stacks-chain/fork-maintenance-plan.md` | Upstream sync, releases, branch management | **Syncing upstream, tagging releases, fork health checks** |
+| `docs/stacks-chain/dev-environment.md` | Running dev environment correctly | **Dev setup issues, CORS errors, service startup** |
+| `docs/stacks-chain/stacks-integration-prd.md` | WHAT to build (features, scope) | Planning new Stacks features |
+| `.claude/docs/architecture/quick-reference.md` | HOW patterns (common tasks) | During implementation |
+| `.claude/docs/architecture/*.md` | Detailed implementation guides | Phase-specific work |
+| `.claude/rules/*.md` | Code conventions | When writing code |
 
-**For Stacks work**: Always read the PRD first. Load architecture files for your current phase.
+**For fork maintenance**: Check `fork-maintenance-plan.md` first - it has Quick Reference section at top.
+**For Stacks features**: Read PRD first, then load relevant architecture files.
 
 ## Development Commands
 
@@ -41,11 +58,24 @@ After cloning, configure: `gh repo set-default alexlmiller/rotki`
 - Node.js 22+, pnpm 10+, Python 3.11+, Rust (stable), uv
 
 ### Quick Start
+
+**IMPORTANT**: For Stacks development, use the documented setup in `docs/stacks-chain/dev-environment.md`.
+
+**Correct way to run all services:**
+```bash
+cd frontend
+export PATH="$HOME/.cargo/bin:$PATH"
+source ../.venv/bin/activate
+pnpm dev:web  # Starts backend + Colibri (with CORS) + frontend
+```
+
+**Alternative (traditional):**
 ```bash
 pnpm install && uv sync    # Install dependencies
-pnpm dev                   # Full dev environment (frontend + backend + colibri)
-pnpm dev:web               # Web-only development
+pnpm dev                   # Full dev environment (Electron)
 ```
+
+**Common mistake**: Manually starting services individually leads to CORS issues. Use `pnpm dev:web` from frontend directory.
 
 ### Backend
 ```bash
