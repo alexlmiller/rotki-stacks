@@ -8,7 +8,14 @@ from rotkehlchen.errors.asset import UnknownAsset
 from rotkehlchen.errors.serialization import DeserializationError
 from rotkehlchen.logging import RotkehlchenLogsAdapter
 from rotkehlchen.serialization.deserialize import deserialize_evm_address
-from rotkehlchen.types import ChainID, ChecksumEvmAddress, SolanaAddress, Timestamp, TokenKind
+from rotkehlchen.types import (
+    ChainID,
+    ChecksumEvmAddress,
+    SolanaAddress,
+    StacksAddress,
+    Timestamp,
+    TokenKind,
+)
 
 from .types import VersionRange
 
@@ -103,6 +110,7 @@ class AssetParser(BaseAssetParser[AssetData]):
         self._common_details_re = re.compile(r'.*INSERT +INTO +common_asset_details *\( *identifier *, *symbol *, *coingecko *, *cryptocompare *, *forked *, *started *, *swapped_for *\) *VALUES *\((.*?),(.*?),(.*?),(.*?),(.*?),([^,]*?),([^,]*?)\).*')  # noqa: E501
         self._evm_tokens_re = re.compile(r'.*INSERT +INTO +evm_tokens *\( *identifier *, *token_kind *, *chain *, *address *, *decimals *, *protocol *\) *VALUES *\(([^,]*?),([^,]*?),([^,]*?),([^,]*?),([^,]*?),([^,]*?)\).*')  # noqa: E501
         self._solana_tokens_re = re.compile(r'.*INSERT +INTO +solana_tokens *\( *identifier *, *token_kind *, *address *, *decimals *, *protocol *\) *VALUES *\(([^,]*?),([^,]*?),([^,]*?),([^,]*?),([^,]*?)\).*')  # noqa: E501
+        self._stacks_tokens_re = re.compile(r'.*INSERT +INTO +stacks_tokens *\( *identifier *, *token_kind *, *contract_id *, *decimals *, *protocol *\) *VALUES *\(([^,]*?),([^,]*?),([^,]*?),([^,]*?),([^,]*?)\).*')  # noqa: E501
         self._version_parsers = [
             (VersionRange(15, 36), self._parse_legacy_format),
             (VersionRange(37, None), self._parse_latest_format),
@@ -134,10 +142,18 @@ class AssetParser(BaseAssetParser[AssetData]):
         )
 
     def _parse_latest_format(self, connection: 'DBConnection', insert_text: str) -> AssetData:
-        """Parse assets for versions 37+ (with solana_tokens table support)."""
+        """Parse assets for versions 37+ (with solana_tokens and stacks_tokens table support)."""
         asset_data = self._parse_legacy_format(connection, insert_text)
         if asset_data.asset_type == AssetType.SOLANA_TOKEN:
             address, decimals, protocol, token_kind = self._parse_solana_token_data(insert_text)
+            return asset_data._replace(
+                address=address,
+                decimals=decimals,
+                protocol=protocol,
+                token_kind=token_kind,
+            )
+        if asset_data.asset_type == AssetType.STACKS_TOKEN:
+            address, decimals, protocol, token_kind = self._parse_stacks_token_data(insert_text)
             return asset_data._replace(
                 address=address,
                 decimals=decimals,
@@ -278,6 +294,42 @@ class AssetParser(BaseAssetParser[AssetData]):
         )
         return (
             SolanaAddress(self._parse_str(match.group(3), 'address', insert_text)),
+            self._parse_optional_int(match.group(4), 'decimals', insert_text),
+            self._parse_optional_str(match.group(5), 'protocol', insert_text),
+            token_kind,
+        )
+
+    def _parse_stacks_token_data(
+            self,
+            insert_text: str,
+    ) -> tuple[StacksAddress, int | None, str | None, TokenKind | None]:
+        """Read information related to stacks assets from the insert line.
+        May raise:
+            - DeserializationError: if the regex didn't work or we failed to deserialize any value
+        """
+        if (match := self._stacks_tokens_re.match(insert_text)) is None:
+            raise DeserializationError(
+                f'At asset DB update could not parse stacks token data out '
+                f'of {insert_text}',
+            )
+
+        if len(match.groups()) != 5:
+            raise DeserializationError(
+                f'At asset DB update could not parse stacks token data out of {insert_text}',
+            )
+
+        token_kind_value = self._parse_optional_str(
+            value=match.group(2),
+            name='token_kind',
+            insert_text=insert_text,
+        )
+        token_kind = (
+            TokenKind.deserialize_stacks_from_db(token_kind_value)
+            if token_kind_value is not None
+            else None
+        )
+        return (
+            StacksAddress(self._parse_str(match.group(3), 'contract_id', insert_text)),
             self._parse_optional_int(match.group(4), 'decimals', insert_text),
             self._parse_optional_str(match.group(5), 'protocol', insert_text),
             token_kind,
