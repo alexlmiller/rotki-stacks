@@ -135,7 +135,7 @@ def decode_hermetica_events(
                 event.event_subtype == HistoryEventSubType.NONE and
                 event.location_label == transaction.sender_address
             ):
-                event.event_type = HistoryEventType.DEPOSIT
+                event.event_type = HistoryEventType.RECEIVE
                 event.event_subtype = HistoryEventSubType.RECEIVE_WRAPPED
                 event.counterparty = CPT_HERMETICA
                 symbol = event.asset.resolve_to_asset_with_symbol().symbol
@@ -151,7 +151,7 @@ def decode_hermetica_events(
                 event.event_subtype == HistoryEventSubType.NONE and
                 event.location_label == transaction.sender_address
             ):
-                event.event_type = HistoryEventType.WITHDRAWAL
+                event.event_type = HistoryEventType.SPEND
                 event.event_subtype = HistoryEventSubType.RETURN_WRAPPED
                 event.counterparty = CPT_HERMETICA
                 symbol = event.asset.resolve_to_asset_with_symbol().symbol

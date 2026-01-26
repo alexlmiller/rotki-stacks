@@ -94,7 +94,7 @@ def _decode_bitflow_liquidity(
                 event.event_subtype == HistoryEventSubType.NONE and
                 event.location_label == transaction.sender_address
             ):
-                event.event_type = HistoryEventType.DEPOSIT
+                event.event_type = HistoryEventType.RECEIVE
                 event.event_subtype = HistoryEventSubType.RECEIVE_WRAPPED
                 event.counterparty = CPT_BITFLOW
                 symbol = event.asset.resolve_to_asset_with_symbol().symbol
@@ -109,7 +109,7 @@ def _decode_bitflow_liquidity(
                 event.event_subtype == HistoryEventSubType.NONE and
                 event.location_label == transaction.sender_address
             ):
-                event.event_type = HistoryEventType.WITHDRAWAL
+                event.event_type = HistoryEventType.SPEND
                 event.event_subtype = HistoryEventSubType.RETURN_WRAPPED
                 event.counterparty = CPT_BITFLOW
                 symbol = event.asset.resolve_to_asset_with_symbol().symbol

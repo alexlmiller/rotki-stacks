@@ -1,4 +1,5 @@
 """Stacks blockchain constants and configuration."""
+
 from typing import Final, NamedTuple
 
 from rotkehlchen.fval import FVal
@@ -17,6 +18,7 @@ STX_DECIMALS: Final = 6
 
 class StacksTokenMetadata(NamedTuple):
     """Metadata for well-known Stacks tokens."""
+
     name: str
     symbol: str
     decimals: int
@@ -132,6 +134,159 @@ CURATED_STACKS_TOKENS: Final[dict[str, StacksTokenMetadata]] = {
         coingecko='wrapped-bitcoin-stacks',
         protocol=None,
     ),
+    # =====================================
+    # Tier 1: DeFi Protocol Tokens
+    # =====================================
+    # Hermetica USDh - USD stablecoin on Stacks
+    'SPN5AKG35QZSK2M8GAMR4AFX45659RJHDW353HSG.usdh-token-v1': StacksTokenMetadata(
+        name='USDh',
+        symbol='USDh',
+        decimals=8,
+        coingecko='hermetica-usdh',
+        protocol='hermetica',
+    ),
+    # Arkadiko DIKO - Governance token
+    'SP2C2YFP12AJZB4MABJBAJ55XECVS7E4PMMZ89YZR.arkadiko-token': StacksTokenMetadata(
+        name='Arkadiko',
+        symbol='DIKO',
+        decimals=6,
+        coingecko='arkadiko-protocol',
+        protocol='arkadiko',
+    ),
+    # Wrapped STX (Velar) - For DeFi
+    'SP1Y5YSTAHZ88XYK1VPDH24GY0HPX5J4JECTMY4A1.wstx': StacksTokenMetadata(
+        name='Wrapped STX',
+        symbol='WSTX',
+        decimals=6,
+        coingecko='wrapped-stx-velar',
+        protocol='velar',
+    ),
+    # =====================================
+    # Tier 2: Bridge Tokens
+    # =====================================
+    # ALEX sUSDT - Bridged USDT
+    'SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.token-susdt': StacksTokenMetadata(
+        name='sUSDT',
+        symbol='sUSDT',
+        decimals=8,
+        coingecko='alex-wrapped-usdt',
+        protocol='alex',
+    ),
+    # XLink aBTC - Bridged BTC
+    'SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.token-abtc': StacksTokenMetadata(
+        name='aBTC',
+        symbol='aBTC',
+        decimals=8,
+        coingecko='xlink-bridged-btc-stacks',
+        protocol='xlink',
+    ),
+    # LunarCrush on Stacks
+    'SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.token-slunr': StacksTokenMetadata(
+        name='LunarCrush',
+        symbol='sLUNR',
+        decimals=8,
+        coingecko='lunr-token',
+        protocol='alex',
+    ),
+    # =====================================
+    # Tier 3: Community/Meme Tokens
+    # =====================================
+    # Welsh Corgi Coin - Meme token
+    'SP3NE50GEXFG9SZGTT51P40X2CKYSZ5CC4ZTZ7A2G.welshcorgicoin-token': StacksTokenMetadata(
+        name='Welshcorgicoin',
+        symbol='WELSH',
+        decimals=6,
+        coingecko='welsh-corgi-coin',
+        protocol=None,
+    ),
+    # LEO - Leopold meme token
+    'SP1AY6K3PQV5MRT6R4S671NWW2FRVPKM0BR162CT6.leo-token': StacksTokenMetadata(
+        name='LEO',
+        symbol='LEO',
+        decimals=6,
+        coingecko='leopold',
+        protocol=None,
+    ),
+    # SatoshAI
+    'SP3M31QFF6S96215K4Y2Z9K5SGHJN384NV6YM6VM8.satoshai': StacksTokenMetadata(
+        name='SatoshAI',
+        symbol='SAI',
+        decimals=6,
+        coingecko='satoshai',
+        protocol=None,
+    ),
+    # Nothing - Meme token (0 decimals)
+    'SP32AEEF6WW5Y0NMJ1S8SBSZDAY8R5J32NBZFPKKZ.nope': StacksTokenMetadata(
+        name='Nothing',
+        symbol='NOT',
+        decimals=0,
+        coingecko='nothing-3',
+        protocol=None,
+    ),
+    # GUS - Meme token
+    'SP1JFFSYTSH7VBM54K29ZFS9H4SVB67EA8VT2MYJ9.gus-token': StacksTokenMetadata(
+        name='GUS',
+        symbol='GUS',
+        decimals=6,
+        coingecko='gus',
+        protocol=None,
+    ),
+    # Flat Earth
+    'SP3W69VDG9VTZNG7NTW1QNCC1W45SNY98W1JSZBJH.flat-earth-stxcity': StacksTokenMetadata(
+        name='Flat Earth',
+        symbol='FLAT',
+        decimals=6,
+        coingecko='flat-earth',
+        protocol=None,
+    ),
+    # Skullcoin
+    'SP3BRXZ9Y7P5YP28PSR8YJT39RT51ZZBSECTCADGR.skullcoin-stxcity': StacksTokenMetadata(
+        name='Skullcoin',
+        symbol='SKULL',
+        decimals=6,
+        coingecko='skullcoin',
+        protocol=None,
+    ),
+    # WEN
+    'SP25K3XPVBNWXPMYDXBPSZHGC8APW0Z21CWJ3Y3B1.wen-nakamoto-stxcity': StacksTokenMetadata(
+        name='WEN',
+        symbol='WEN',
+        decimals=6,
+        coingecko='wen-5',
+        protocol=None,
+    ),
+    # Kangaroo
+    'SP2C1WREHGM75C7TGFAEJPFKTFTEGZKF6DFT6E2GE.kangaroo': StacksTokenMetadata(
+        name='Kangaroo',
+        symbol='$ROO',
+        decimals=6,
+        coingecko='kangaroo-the-jumping-co-in',
+        protocol=None,
+    ),
+    # Droid
+    'SP2EEV5QBZA454MSMW9W3WJNRXVJF36VPV17FFKYH.DROID': StacksTokenMetadata(
+        name='Droid',
+        symbol='DROID',
+        decimals=6,
+        coingecko='droid',
+        protocol=None,
+    ),
+    # NotaStrategy (7 decimals)
+    'SP2TT71CXBRDDYP2P8XMVKRFYKRGSMBWCZ6W6FDGT.notastrategy': StacksTokenMetadata(
+        name='NotaStrategy',
+        symbol='NASTY',
+        decimals=7,
+        coingecko='notastrategy',
+        protocol=None,
+    ),
+    # Blocks
+    'SPV9K21TBFAK4KNRJXF5DFP8N7W46G4V9RCJDC22.b-faktory': StacksTokenMetadata(
+        name='Blocks',
+        symbol='B',
+        decimals=6,
+        coingecko='blocks-2',
+        protocol=None,
+    ),
 }
 
 
@@ -156,4 +311,4 @@ def micro_stx_to_stx(micro_stx: int) -> FVal:
     Returns:
         Amount in STX as FVal
     """
-    return FVal(micro_stx) / (10 ** STX_DECIMALS)
+    return FVal(micro_stx) / (10**STX_DECIMALS)

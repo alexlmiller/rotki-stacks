@@ -84,7 +84,7 @@ def decode_stackingdao_events(
             stx_spend.notes = f'Deposit {stx_spend.amount} STX into StackingDAO'
 
         if token_receive is not None:
-            token_receive.event_type = HistoryEventType.DEPOSIT
+            token_receive.event_type = HistoryEventType.RECEIVE
             token_receive.event_subtype = HistoryEventSubType.RECEIVE_WRAPPED
             token_receive.counterparty = CPT_STACKINGDAO
             symbol = token_receive.asset.resolve_to_asset_with_symbol().symbol
