@@ -1,6 +1,7 @@
 use crate::blockchain::{
     parse_asset_identifier, AssetAddress, EvmInquirerManager, EvmNodeInquirer, SupportedBlockchain,
 };
+use serde_json;
 use crate::coingecko;
 use crate::globaldb;
 use alloy::{
@@ -18,6 +19,14 @@ use std::time::Duration;
 
 const SMOLDAPP_BASE_URL: &str =
     "https://raw.githubusercontent.com/SmolDapp/tokenAssets/refs/heads/main/tokens";
+
+/// Hiro Token Metadata API base URL for fetching Stacks token metadata including images
+const HIRO_METADATA_API_URL: &str = "https://api.hiro.so/metadata/v1/ft";
+
+/// Fallback icon for Stacks tokens without metadata images
+/// Uses the STX icon as fallback to indicate it's a Stacks token
+const STACKS_FALLBACK_ICON_URL: &str =
+    "https://raw.githubusercontent.com/rotki/data/develop/assets/icons/stx.png";
 
 pub enum FileTypeError {
     UnsupportedFileType,
@@ -83,6 +92,136 @@ async fn query_image_from_cdn(url: &str) -> Option<Bytes> {
     smoldapp_image_query(&Client::new(), url, "")
         .await
         .map(|(bytes, _)| bytes)
+}
+
+/// Determine file extension from content-type header or URL
+fn determine_extension_from_response(
+    content_type: Option<&str>,
+    url: &str,
+) -> &'static str {
+    // First try content-type header
+    if let Some(ct) = content_type {
+        if ct.contains("svg") {
+            return "svg";
+        } else if ct.contains("png") {
+            return "png";
+        } else if ct.contains("jpeg") || ct.contains("jpg") {
+            return "jpg";
+        } else if ct.contains("gif") {
+            return "gif";
+        } else if ct.contains("webp") {
+            return "webp";
+        }
+    }
+    // Fall back to URL extension
+    if url.ends_with(".svg") {
+        "svg"
+    } else if url.ends_with(".jpg") || url.ends_with(".jpeg") {
+        "jpg"
+    } else if url.ends_with(".gif") {
+        "gif"
+    } else if url.ends_with(".webp") {
+        "webp"
+    } else {
+        "png" // Default to PNG
+    }
+}
+
+/// Query Hiro Token Metadata API for Stacks token icon
+/// Returns the icon bytes and file extension if found
+async fn query_hiro_token_icon(contract_principal: &str) -> Option<(Bytes, &'static str)> {
+    let client = Client::new();
+    let url = format!("{}/{}", HIRO_METADATA_API_URL, contract_principal);
+
+    debug!("Querying Hiro metadata API for {}", contract_principal);
+
+    // Fetch metadata JSON
+    let resp = match client
+        .get(&url)
+        .timeout(Duration::from_secs(10))
+        .send()
+        .await
+    {
+        Ok(r) => r,
+        Err(e) => {
+            error!("Failed to query Hiro API for {}: {}", contract_principal, e);
+            return None;
+        }
+    };
+
+    if !resp.status().is_success() {
+        debug!(
+            "Hiro API returned non-success status {} for {}",
+            resp.status(),
+            contract_principal
+        );
+        return None;
+    }
+
+    let json: serde_json::Value = match resp.json().await {
+        Ok(j) => j,
+        Err(e) => {
+            error!(
+                "Failed to parse Hiro API response for {}: {}",
+                contract_principal, e
+            );
+            return None;
+        }
+    };
+
+    // Priority: cached_image > cached_thumbnail_image > image_canonical_uri > image_uri
+    let image_url = json
+        .get("cached_image")
+        .or_else(|| json.get("cached_thumbnail_image"))
+        .or_else(|| json.get("image_canonical_uri"))
+        .or_else(|| json.get("image_uri"))
+        .and_then(|v| v.as_str())
+        .filter(|s| !s.is_empty())?;
+
+    debug!("Found image URL for {}: {}", contract_principal, image_url);
+
+    // Fetch the actual image
+    let img_resp = match client
+        .get(image_url)
+        .timeout(Duration::from_secs(10))
+        .send()
+        .await
+    {
+        Ok(r) => r,
+        Err(e) => {
+            error!(
+                "Failed to fetch image from {} for {}: {}",
+                image_url, contract_principal, e
+            );
+            return None;
+        }
+    };
+
+    if !img_resp.status().is_success() {
+        error!(
+            "Image fetch returned non-success status {} for {}",
+            img_resp.status(),
+            image_url
+        );
+        return None;
+    }
+
+    // Determine extension from content-type or URL
+    let content_type = img_resp
+        .headers()
+        .get("content-type")
+        .and_then(|h| h.to_str().ok());
+    let extension = determine_extension_from_response(content_type, image_url);
+
+    let bytes = match img_resp.bytes().await {
+        Ok(b) => b,
+        Err(e) => {
+            error!("Failed to read image bytes for {}: {}", contract_principal, e);
+            return None;
+        }
+    };
+
+    Some((bytes, extension))
 }
 
 async fn query_token_icon_and_extension(
@@ -426,32 +565,8 @@ pub async fn query_icon_remotely(
         "TIA" => Some(("https://raw.githubusercontent.com/rotki/data/develop/assets/icons/tia.png", "png")),
         "DOT" => Some(("https://raw.githubusercontent.com/rotki/data/develop/assets/icons/dot.png", "png")),
         "SOL" => Some(("https://raw.githubusercontent.com/SmolDapp/tokenAssets/main/tokens/1151111081099710/So11111111111111111111111111111111111111112/logo.svg", "svg")),
-        "STX" => Some(("https://raw.githubusercontent.com/alexlmiller/rotki/feat/add-stacks-chain/rotkehlchen/data/icons/stx.svg", "svg")),
         "eip155:1/erc20:0x455e53CBB86018Ac2B8092FdCd39d8444aFFC3F6" => Some(("https://raw.githubusercontent.com/SmolDapp/tokenAssets/refs/heads/main/chains/1101/logo.svg", "svg")),  // polygon
-        // Stacks SIP-10 tokens - Core DeFi
-        id if id.contains("SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token") => Some(("https://assets.coingecko.com/coins/images/52749/standard/sBTC.png", "png")),  // sBTC (mainnet)
-        id if id.contains("SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.sbtc") => Some(("https://assets.coingecko.com/coins/images/52749/standard/sBTC.png", "png")),  // sBTC (legacy)
-        id if id.contains("SP4SZE494VC2YC5JYG7AYFQ44F5Q4PYV7DVMDPBG.ststx-token") => Some(("https://assets.coingecko.com/coins/images/28953/standard/stSTX.png", "png")),  // stSTX (StackingDAO)
-        id if id.contains("SP4SZE494VC2YC5JYG7AYFQ44F5Q4PYV7DVMDPBG.ststxbtc-token") => Some(("https://coin-images.coingecko.com/coins/images/54062/large/ststxbtc.png", "png")),  // stSTXBTC (StackingDAO)
-        id if id.contains("SP3Y2ZSH8P7D50B0VBTSX11S7XSG24M1VB9YFQA4K.token-aeusdc") => Some(("https://assets.coingecko.com/coins/images/6319/standard/usdc.png", "png")),  // aeUSDC (Allbridge)
-        id if id.contains("SP120SBRBQJ00MCWS7TM5R8WJNTTKD5K0HFRC2CNE.usdcx") => Some(("https://assets.coingecko.com/coins/images/6319/standard/usdc.png", "png")),  // USDCx (Circle)
-        id if id.contains("SP2C2YFP12AJZB4MABJBAJ55XECVS7E4PMMZ89YZR.usda-token") => Some(("https://assets.coingecko.com/coins/images/20852/standard/USDA.png", "png")),  // USDA (Arkadiko)
-        id if id.contains("SP2C2YFP12AJZB4MABJBAJ55XECVS7E4PMMZ89YZR.arkadiko-token") => Some(("https://coin-images.coingecko.com/coins/images/21729/large/diko.png", "png")),  // DIKO (Arkadiko)
-        id if id.contains("SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.token-alex") => Some(("https://assets.coingecko.com/coins/images/25972/standard/alex.png", "png")),  // ALEX
-        id if id.contains("SP1Y5YSTAHZ88XYK1VPDH24GY0HPX5J4JECTMY4A1.velar-token") => Some(("https://assets.coingecko.com/coins/images/35286/standard/velar_icon.png", "png")),  // VELAR
-        id if id.contains("SP1Y5YSTAHZ88XYK1VPDH24GY0HPX5J4JECTMY4A1.wstx") => Some(("https://raw.githubusercontent.com/alexlmiller/rotki/feat/add-stacks-chain/rotkehlchen/data/icons/stx.svg", "svg")),  // wSTX (Velar)
-        id if id.contains("SPN5AKG35QZSK2M8GAMR4AFX45659RJHDW353HSG.usdh-token") => Some(("https://assets.coingecko.com/coins/images/36055/standard/usdh.png", "png")),  // USDh (Hermetica)
-        id if id.contains("SPN5AKG35QZSK2M8GAMR4AFX45659RJHDW353HSG.susdh-token") => Some(("https://assets.coingecko.com/coins/images/36055/standard/usdh.png", "png")),  // sUSDh (staked USDh)
-        // Stacks SIP-10 tokens - Bridge tokens
-        id if id.contains("SP3DX3H4FEYZJZ586MFBS25ZW3HZDMEW92260R2PR.Wrapped-Bitcoin") => Some(("https://raw.githubusercontent.com/rotki/data/develop/assets/icons/btc.png", "png")),  // xBTC
-        id if id.contains("SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.token-susdt") => Some(("https://coin-images.coingecko.com/coins/images/30407/large/aUSD.png", "png")),  // sUSDT (ALEX)
-        id if id.contains("SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.token-abtc") => Some(("https://coin-images.coingecko.com/coins/images/33363/large/aBTC.png", "png")),  // aBTC (XLink)
-        id if id.contains("SP14NS8MVBRHXMM96BQY0727AJ59SWPV7RMHC0NCG.pontis-bridge-pBTC") => Some(("https://raw.githubusercontent.com/rotki/data/develop/assets/icons/btc.png", "png")),  // pBTC (Pontis)
-        // Stacks SIP-10 tokens - Community/Meme tokens
-        id if id.contains("SP3NE50GEXFG9SZGTT51P40X2CKYSZ5CC4ZTZ7A2G.welshcorgicoin-token") => Some(("https://coin-images.coingecko.com/coins/images/34009/large/welsh.png", "png")),  // WELSH
-        // Stacks SIP-10 tokens - City Coins
-        id if id.contains("SP1H1733V5MZ3SZ9XRW9FKYGEZT0JDGEB8Y634C7R.miamicoin-token-v2") => Some(("https://assets.coingecko.com/coins/images/17031/standard/mia.png", "png")),  // MiamiCoin v2
-        id if id.contains("SP6VJ9Z094TQ1NQB4GNHK3VZGZGKABCVY3DRJ5YE.miamicoin-token") => Some(("https://assets.coingecko.com/coins/images/17031/standard/mia.png", "png")),  // MiamiCoin v1
+        "STX" => Some(("https://raw.githubusercontent.com/rotki/data/develop/assets/icons/stx.png", "png")),  // Stacks native token
         _ => None
     } {
         if let Some(icon_bytes) = query_image_from_cdn(url).await {
@@ -496,15 +611,33 @@ pub async fn query_icon_remotely(
             }
         }
 
-        // For all token types, try SmolDapp
-        if let Some((icon_bytes, extension)) = query_token_icon_and_extension(
-            asset_info.chain_id,
-            asset_info.contract_address,
-            SMOLDAPP_BASE_URL,
-        )
-        .await
-        {
-            return write_icon_to_file(&path, extension, &icon_bytes).await;
+        // Handle Stacks tokens via Hiro API
+        if let AssetAddress::Stacks(contract_principal) = &asset_info.contract_address {
+            debug!("Detected Stacks token: {}", contract_principal);
+            // Try Hiro Token Metadata API
+            if let Some((icon_bytes, extension)) = query_hiro_token_icon(contract_principal).await {
+                return write_icon_to_file(&path, extension, &icon_bytes).await;
+            }
+            // Fall back to grayed Stacks icon for tokens without metadata images
+            debug!(
+                "No Hiro metadata image for {}, using fallback",
+                contract_principal
+            );
+            if let Some(icon_bytes) = query_image_from_cdn(STACKS_FALLBACK_ICON_URL).await {
+                return write_icon_to_file(&path, "png", &icon_bytes).await;
+            }
+            // If fallback also fails, continue to CoinGecko
+        } else {
+            // For EVM/Solana token types, try SmolDapp
+            if let Some((icon_bytes, extension)) = query_token_icon_and_extension(
+                asset_info.chain_id,
+                asset_info.contract_address.clone(),
+                SMOLDAPP_BASE_URL,
+            )
+            .await
+            {
+                return write_icon_to_file(&path, extension, &icon_bytes).await;
+            }
         }
     }
 
