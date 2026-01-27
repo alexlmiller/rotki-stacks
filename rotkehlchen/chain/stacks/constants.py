@@ -49,7 +49,7 @@ def _load_curated_tokens() -> dict[str, StacksTokenMetadata]:
             tokens[row['contract_id']] = StacksTokenMetadata(
                 name=row['name'],
                 symbol=row['symbol'],
-                decimals=int(row['decimals']),
+                decimals=int(row['decimals']) if row['decimals'] else 0,
                 coingecko=row['coingecko'] or None,
                 cryptocompare=row['cryptocompare'] or None,
                 protocol=row['protocol'] or None,
