@@ -25,7 +25,7 @@ const HIRO_METADATA_API_URL: &str = "https://api.hiro.so/metadata/v1/ft";
 /// Fallback icon for Stacks tokens without metadata images
 /// Uses the STX icon as fallback to indicate it's a Stacks token
 const STACKS_FALLBACK_ICON_URL: &str =
-    "https://raw.githubusercontent.com/rotki/data/develop/assets/icons/stx.png";
+    "https://raw.githubusercontent.com/rotki/data/develop/assets/icons/stx.svg";
 
 pub enum FileTypeError {
     UnsupportedFileType,
@@ -565,7 +565,6 @@ pub async fn query_icon_remotely(
         "DOT" => Some(("https://raw.githubusercontent.com/rotki/data/develop/assets/icons/dot.png", "png")),
         "SOL" => Some(("https://raw.githubusercontent.com/SmolDapp/tokenAssets/main/tokens/1151111081099710/So11111111111111111111111111111111111111112/logo.svg", "svg")),
         "eip155:1/erc20:0x455e53CBB86018Ac2B8092FdCd39d8444aFFC3F6" => Some(("https://raw.githubusercontent.com/SmolDapp/tokenAssets/refs/heads/main/chains/1101/logo.svg", "svg")),  // polygon
-        "STX" => Some(("https://raw.githubusercontent.com/rotki/data/develop/assets/icons/stx.png", "png")),  // Stacks native token
         _ => None
     } {
         if let Some(icon_bytes) = query_image_from_cdn(url).await {
