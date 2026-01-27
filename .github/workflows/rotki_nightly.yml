@@ -106,34 +106,4 @@ jobs:
 
   # DISABLED: verify-link (external link verification not needed for Docker-only fork)
 
-  notify:
-    name: 'Success check'
-    if: ${{ always() && (github.repository == 'rotki/rotki' || github.event_name != 'schedule') }}
-    needs: [ 'linux', 'macos', 'windows', 'backend-coverage' ]
-    runs-on: ubuntu-latest
-    environment: nightly_notify
-    permissions:
-      contents: read
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 1
-          persist-credentials: false
-
-      - name: Check if any task failed
-        run: |
-          pip install requests
-
-          data=($(echo "${RESULT}" | sed 's/[][,"]//g'))
-          echo "Processing ${#data[@]} entries"
-          for idx in "${!data[@]}"
-          do
-            echo "Processing entry $idx: ${data[$idx]}"
-            if [[ ${data[$idx]} == "failure" ]]; then
-                ./.github/scripts/notifier.py --webhook ${{ secrets.DISCORD_WEBHOOK }} --run-id ${{ github.run_id }} --test
-                exit 1;
-            fi
-          done
-        env:
-          RESULT: ${{ toJSON(needs.*.result) }}
+  # DISABLED: notify (Discord webhook notifications not configured for fork)
