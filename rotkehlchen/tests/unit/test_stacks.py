@@ -497,7 +497,9 @@ class TestStacksCuratedTokenMetadata:
     def test_csv_file_exists(self) -> None:
         """Test that the Stacks tokens CSV file exists."""
         from pathlib import Path
-        csv_path = Path(__file__).resolve().parent.parent.parent / 'data' / 'stacks_tokens_data.csv'
+        csv_path = (
+            Path(__file__).resolve().parent.parent.parent / 'data' / 'stacks_tokens_data.csv'
+        )
         assert csv_path.exists(), f'CSV file not found at {csv_path}'
 
     def test_curated_tokens_loaded(self) -> None:

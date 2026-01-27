@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING
 from rotkehlchen.assets.types import AssetType
 from rotkehlchen.db.upgrades.upgrade_utils import process_stacks_asset_migration
 from rotkehlchen.logging import RotkehlchenLogsAdapter, enter_exit_debug_log
-from rotkehlchen.types import TokenKind
 from rotkehlchen.utils.progress import perform_globaldb_upgrade_steps, progress_step
 
 if TYPE_CHECKING:

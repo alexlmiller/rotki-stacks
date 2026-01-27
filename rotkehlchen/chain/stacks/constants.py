@@ -73,7 +73,7 @@ def get_curated_token_metadata(contract_id: str) -> StacksTokenMetadata | None:
 def __getattr__(name: str) -> dict[str, StacksTokenMetadata]:
     if name == 'CURATED_STACKS_TOKENS':
         return _load_curated_tokens()
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    raise AttributeError(f'module {__name__!r} has no attribute {name!r}')
 
 
 def micro_stx_to_stx(micro_stx: int) -> FVal:

@@ -75,8 +75,8 @@ def process_solana_asset_migration(
 
 
 def process_stacks_asset_migration(
-        write_cursor: 'DBCursor',  # noqa: ARG001
-        table_updates: list[tuple[str, str]],  # noqa: ARG001
+        write_cursor: 'DBCursor',
+        table_updates: list[tuple[str, str]],
 ) -> list[tuple]:
     """Read stacks tokens CSV and prepare data for insertion.
 
