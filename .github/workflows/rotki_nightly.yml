@@ -46,15 +46,7 @@ jobs:
     permissions:
       contents: read
 
-  e2e:
-    uses: ./.github/workflows/task_e2e_tests.yml
-    if: ${{ always() && (github.repository == 'rotki/rotki' || github.event_name != 'schedule') }}
-    needs: [ 'macos' ]
-    secrets:
-      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-    permissions:
-      contents: read
-      actions: write
+  # DISABLED: e2e (end-to-end tests not needed for Docker-only fork)
 
   backend-coverage:
     name: 'Backend coverage upload'
@@ -110,19 +102,9 @@ jobs:
           files: coverage.xml
           token: ${{ secrets.CODECOV_TOKEN }}
 
-  unittest-frontend:
-    uses: ./.github/workflows/task_fe_unit_tests.yml
-    if: ${{ always() && (github.repository == 'rotki/rotki' || github.event_name != 'schedule') }}
-    secrets:
-      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-    permissions:
-      contents: read
+  # DISABLED: unittest-frontend (frontend unit tests not needed for Docker-only fork)
 
-  verify-link:
-    uses: ./.github/workflows/task_fe_external_links_verification.yml
-    if: ${{ always() && (github.repository == 'rotki/rotki' || github.event_name != 'schedule') }}
-    permissions:
-      contents: read
+  # DISABLED: verify-link (external link verification not needed for Docker-only fork)
 
   notify:
     name: 'Success check'
