@@ -72,3 +72,38 @@ def process_solana_asset_migration(
         write_cursor.execute(case_sql, all_params)
 
     return solana_tokens_data
+
+
+def process_stacks_asset_migration(
+        write_cursor: 'DBCursor',
+        table_updates: list[tuple[str, str]],
+) -> list[tuple]:
+    """Read stacks tokens CSV and prepare data for insertion.
+
+    Returns a list of stacks token data tuples for insertion into the database.
+    (empty if CSV missing)
+
+    FROZEN: Do not modify. Used for v15->v16 globaldb upgrade.
+    """
+    dir_path = Path(__file__).resolve().parent.parent.parent
+    if not (csv_file := dir_path / 'data' / 'stacks_tokens_data.csv').exists():
+        return []
+
+    stacks_tokens_data = []
+    with csv_file.open(encoding='utf-8') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            identifier = f'stacks/sip10_fungible:{row["contract_id"]}'
+            stacks_tokens_data.append((
+                identifier,
+                'F',  # SIP10_FUNGIBLE
+                row['contract_id'],
+                int(row['decimals']) if row['decimals'] else None,
+                row['protocol'] or None,
+                row['name'],
+                row['symbol'],
+                row['coingecko'] or None,
+                row['cryptocompare'] or None,
+            ))
+
+    return stacks_tokens_data

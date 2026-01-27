@@ -2,10 +2,8 @@ import logging
 from typing import TYPE_CHECKING
 
 from rotkehlchen.assets.types import AssetType
-from rotkehlchen.chain.stacks.constants import CURATED_STACKS_TOKENS
-from rotkehlchen.constants.resolver import stacks_contract_to_identifier
+from rotkehlchen.db.upgrades.upgrade_utils import process_stacks_asset_migration
 from rotkehlchen.logging import RotkehlchenLogsAdapter, enter_exit_debug_log
-from rotkehlchen.types import StacksAddress, TokenKind
 from rotkehlchen.utils.progress import perform_globaldb_upgrade_steps, progress_step
 
 if TYPE_CHECKING:
@@ -60,37 +58,40 @@ def migrate_to_v16(connection: 'DBConnection', progress_handler: 'DBUpgradeProgr
 
     @progress_step('Populate stacks_tokens table with curated tokens')
     def _populate_stacks_tokens(write_cursor: 'DBCursor') -> None:
-        """Add curated Stacks tokens from constants to the database."""
+        """Add curated Stacks tokens from CSV to the database."""
+        stacks_tokens_data = process_stacks_asset_migration(write_cursor, [])
+        if not stacks_tokens_data:
+            log.warning('stacks_tokens_data.csv not found, skipping token population')
+            return
+
         stacks_type_char = AssetType.STACKS_TOKEN.serialize_for_db()
-        token_kind_char = TokenKind.SIP10_FUNGIBLE.serialize_for_db()
 
         assets_data: list[tuple[str, str, str]] = []
         details_data: list[tuple[str, str, str | None, str | None]] = []
         tokens_data: list[tuple[str, str, str, int | None, str | None]] = []
 
-        for contract_id, metadata in CURATED_STACKS_TOKENS.items():
-            identifier = stacks_contract_to_identifier(
-                contract_id=StacksAddress(contract_id),
-                token_type=TokenKind.SIP10_FUNGIBLE,
-            )
+        # CSV utility returns: (identifier, token_kind, contract_id, decimals, protocol,
+        #                       name, symbol, coingecko, cryptocompare)
+        for token_tuple in stacks_tokens_data:
+            identifier, token_kind, contract_id, decimals, protocol, name, symbol, coingecko, cryptocompare = token_tuple  # noqa: E501
 
             assets_data.append((
                 identifier,
                 stacks_type_char,
-                metadata.name,
+                name,
             ))
             details_data.append((
                 identifier,
-                metadata.symbol,
-                metadata.coingecko,
-                metadata.cryptocompare,
+                symbol,
+                coingecko,
+                cryptocompare,
             ))
             tokens_data.append((
                 identifier,
-                token_kind_char,
+                token_kind,
                 contract_id,
-                metadata.decimals,
-                metadata.protocol,
+                decimals,
+                protocol,
             ))
 
         # Use INSERT OR IGNORE to handle any tokens already added manually
@@ -109,7 +110,7 @@ def migrate_to_v16(connection: 'DBConnection', progress_handler: 'DBUpgradeProgr
             tokens_data,
         )
 
-        log.debug(f'Added {len(CURATED_STACKS_TOKENS)} curated Stacks tokens to the database')
+        log.debug(f'Added {len(stacks_tokens_data)} curated Stacks tokens to the database')
 
     @progress_step('Update STX-2 (Blockstack) to point to STX (Stacks)')
     def _update_stx_swapped_for(write_cursor: 'DBCursor') -> None:
