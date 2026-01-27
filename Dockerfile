@@ -44,7 +44,7 @@ RUN sed "s/fallback_version.*/fallback_version = \"$PACKAGE_FALLBACK_VERSION\"/"
       cd bootloader && ./waf all && cd .. && \
       uv pip install "pyinstaller @ ."; \
     else \
-      uv pip install pyinstaller==${PYINSTALLER_VERSION}; \
+      uv pip install pyinstaller==${PYINSTALLER_VERSION#v}; \
     fi && \
     cd /app && \
     uv pip install -e . && \
