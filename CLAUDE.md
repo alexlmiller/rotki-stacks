@@ -37,6 +37,57 @@ git checkout upstream-sync && git fetch upstream && git reset --hard upstream/de
 git checkout develop && git merge upstream-sync && git push origin develop
 ```
 
+## Git Worktrees and Branch Policy
+
+**Use worktrees for code changes to prevent conflicts and enable proper review.**
+
+### Change Size Guidelines
+
+| Size | Criteria | Branch Strategy | Example |
+|------|----------|----------------|---------|
+| **Small** | 1-3 line changes, context file updates, typo fixes | Direct to `develop` ✓ | Update CLAUDE.md, fix typo, tweak comment |
+| **Medium** | Multi-file changes, refactoring, bug fixes | Worktree + `bugfixes` branch + PR | Fix workflow bugs, refactor module |
+| **Substantial** | New features, major changes, architectural updates | Worktree + feature branch + PR | Add blockchain support, new API endpoint |
+
+### Worktree Workflow
+
+**Creating a worktree:**
+```bash
+# For substantial changes (new features)
+git worktree add .worktrees/feat-stacks-nft -b feat/stacks-nft
+
+# For medium changes (bug fixes, refactoring)
+git worktree add .worktrees/fix-workflow-issue -b bugfixes
+
+# Work in the worktree
+cd .worktrees/feat-stacks-nft
+# Make changes, commit, push
+git push origin feat/stacks-nft  # or bugfixes
+```
+
+**After PR is merged:**
+```bash
+# From main repo directory
+git worktree remove .worktrees/feat-stacks-nft
+git branch -d feat/stacks-nft  # Delete local branch
+```
+
+### Branch Naming
+
+- `feat/description` - New features (e.g., `feat/stacks-nft-support`)
+- `fix/description` - Bug fixes (e.g., `fix/balance-refresh`)
+- `bugfixes` - General bug fixes and medium-sized changes
+- `docs/topic` - Documentation updates (e.g., `docs/api-reference`)
+
+### When Direct Commits Are OK
+
+Direct commits to `develop` without a worktree/PR are acceptable ONLY for:
+- Context file updates (CLAUDE.md, documentation tweaks)
+- 1-3 line fixes (typos, small corrections)
+- Trivial updates that don't affect functionality
+
+**If unsure, use a worktree and PR.** Better to over-use PRs than under-use them.
+
 ## Documentation Hierarchy
 
 | Document | Purpose | When to Use |
@@ -153,9 +204,11 @@ pnpm run dev && pnpm run test:unit && pnpm run typecheck
 
 ## Commits and PRs
 
+- Follow worktree/branch policy (see "Git Worktrees and Branch Policy" section above)
 - Commit titles: max 50 characters, imperative mood
 - Do not add Co-Authored-By entries for any AI tool
-- Target `bugfixes` branch for patches, `develop` for features
+- Target `bugfixes` branch for medium changes, feature branches for substantial changes
+- Only small changes (1-3 lines, context files) go direct to `develop`
 
 ## Memories
 
