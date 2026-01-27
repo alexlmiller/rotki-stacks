@@ -494,13 +494,32 @@ class TestStacksBlockchainAccountsIntegration:
 class TestStacksCuratedTokenMetadata:
     """Tests for curated Stacks token metadata - Phase 3."""
 
+    def test_csv_file_exists(self) -> None:
+        """Test that the Stacks tokens CSV file exists."""
+        from pathlib import Path
+        csv_path = Path(__file__).resolve().parent.parent.parent / 'data' / 'stacks_tokens_data.csv'
+        assert csv_path.exists(), f'CSV file not found at {csv_path}'
+
     def test_curated_tokens_loaded(self) -> None:
-        """Test that curated token metadata is loaded."""
+        """Test that curated token metadata is loaded from CSV."""
         from rotkehlchen.chain.stacks.constants import CURATED_STACKS_TOKENS
 
         assert len(CURATED_STACKS_TOKENS) > 0
         # Check that sBTC mainnet contract is in the curated tokens
         assert 'SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token' in CURATED_STACKS_TOKENS
+
+    def test_curated_tokens_lazy_loading(self) -> None:
+        """Test that _load_curated_tokens properly loads from CSV."""
+        from rotkehlchen.chain.stacks.constants import _load_curated_tokens
+
+        tokens = _load_curated_tokens()
+        assert len(tokens) > 0
+        # Verify sBTC is present with correct data
+        sbtc = tokens.get('SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token')
+        assert sbtc is not None
+        assert sbtc.name == 'sBTC'
+        assert sbtc.symbol == 'sBTC'
+        assert sbtc.decimals == 8
 
     def test_get_curated_token_metadata_sbtc(self) -> None:
         """Test getting metadata for sBTC token (mainnet contract)."""
