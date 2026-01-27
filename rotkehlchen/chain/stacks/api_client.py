@@ -15,6 +15,7 @@ from rotkehlchen.chain.stacks.constants import (
     MAX_RETRIES,
     StacksTokenMetadata,
 )
+from rotkehlchen.db.settings import CachedSettings
 from rotkehlchen.errors.misc import RemoteError
 from rotkehlchen.externalapis.interface import ExternalServiceWithRecommendedApiKey
 from rotkehlchen.logging import RotkehlchenLogsAdapter
@@ -48,7 +49,11 @@ class StacksApiClient(ExternalServiceWithRecommendedApiKey):
             database: The database handler for API key lookup
         """
         super().__init__(database=database, service_name=ExternalService.HIRO)
-        self.base_url = HIRO_API_BASE_URL
+        # Allow custom API URL override (e.g., for testnet: https://api.testnet.hiro.so)
+        if custom_api_url := CachedSettings().get_entry('stacks_hiro_api_url'):
+            self.base_url = custom_api_url
+        else:
+            self.base_url = HIRO_API_BASE_URL
         self.session = requests.Session()
         self.session.headers.update({
             'Accept': 'application/json',

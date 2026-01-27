@@ -135,6 +135,7 @@ STRING_KEYS: Final = (
     'dot_rpc_endpoint',
     'beacon_rpc_endpoint',
     'btc_mempool_api',
+    'stacks_hiro_api_url',
     'date_display_format',
     'frontend_settings',
     'csv_export_delimiter',
@@ -158,6 +159,7 @@ CachedDBSettingsFieldNames = Literal[
     'dot_rpc_endpoint',
     'beacon_rpc_endpoint',
     'btc_mempool_api',
+    'stacks_hiro_api_url',
     'main_currency',
     'date_display_format',
     'submit_usage_analytics',
@@ -229,6 +231,7 @@ class DBSettings:
     dot_rpc_endpoint: str = ''  # same as kusama -- must be set by user
     beacon_rpc_endpoint: str = ''  # must be set by user
     btc_mempool_api: str = ''
+    stacks_hiro_api_url: str = ''
     main_currency: Asset = DEFAULT_MAIN_CURRENCY
     date_display_format: str = DEFAULT_DATE_DISPLAY_FORMAT
     submit_usage_analytics: bool = DEFAULT_SUBMIT_USAGE_ANALYTICS
@@ -331,6 +334,7 @@ class ModifiableDBSettings(NamedTuple):
     auto_detect_tokens: bool | None = None
     csv_export_delimiter: str | None = None
     btc_mempool_api: str | None = None
+    stacks_hiro_api_url: str | None = None
     events_processing_frequency: int | None = None
     asset_movement_amount_tolerance: FVal | None = None
     asset_movement_time_range: int | None = None

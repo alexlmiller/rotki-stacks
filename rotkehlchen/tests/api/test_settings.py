@@ -211,6 +211,8 @@ def test_set_settings(rotkehlchen_api_server: 'APIServer') -> None:
             value = 'http://lighthouse.mynode.com:6969'
         elif setting == 'btc_mempool_api':
             value = 'http://localhost:4080'
+        elif setting == 'stacks_hiro_api_url':
+            value = 'https://api.testnet.hiro.so'
         elif setting == 'current_price_oracles':
             value = ['coingecko', 'cryptocompare', 'uniswapv2', 'uniswapv3']
         elif setting == 'historical_price_oracles':
