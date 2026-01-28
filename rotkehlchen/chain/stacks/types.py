@@ -73,6 +73,7 @@ class StacksTransaction:
     function_name: str | None = None  # For contract calls
     # Function arguments for contract calls (parsed from API response)
     function_args: tuple[FunctionArg, ...] | None = None
+    memo: str | None = None  # Transaction memo (used by STX-20 protocol)
     db_id: int = -1
 
     def get_or_query_db_id(self, cursor: 'DBCursor') -> int:
