@@ -50,6 +50,7 @@ from ..modules.stackingdao.decoder import (
     decode_stackingdao_events,
     is_stackingdao_transaction,
 )
+from ..modules.stx20.decoder import decode_stx20_events, is_stx20_transaction
 from ..modules.usdcx.decoder import decode_usdcx_events, is_usdcx_transaction
 from ..modules.velar.decoder import decode_velar_events, is_velar_transaction
 from ..modules.zest.decoder import decode_zest_events, is_zest_transaction
@@ -667,6 +668,15 @@ class StacksTransactionDecoder(TransactionDecoder[StacksTransaction, StacksDecod
             transaction=transaction,
         )) is not None:
             events.append(stx_transfer_event)
+
+        # Check for STX-20 memo-based protocol (TOKEN_TRANSFER transactions)
+        if is_stx20_transaction(transaction):
+            additional = decode_stx20_events(
+                transaction=transaction,
+                base_tools=self.base,
+                existing_events=events,
+            )
+            events.extend(additional)
 
         # For contract calls, fetch and decode token transfers and STX events
         if transaction.tx_type == StacksTxType.CONTRACT_CALL:

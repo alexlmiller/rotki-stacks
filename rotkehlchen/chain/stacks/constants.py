@@ -120,6 +120,7 @@ def get_all_stacks_counterparties() -> set['CounterpartyDetails']:
         CounterpartyDetails(
             identifier='stackingdao', label='StackingDAO', image='stackingdao.svg',
         ),
+        CounterpartyDetails(identifier='stx-20', label='STX-20', image='stacks.svg'),
         CounterpartyDetails(identifier='usdcx', label='USDCx', image='usdc.svg'),
         CounterpartyDetails(identifier='velar', label='Velar', image='velar.svg'),
         CounterpartyDetails(identifier='zest', label='Zest', image='zest.svg'),

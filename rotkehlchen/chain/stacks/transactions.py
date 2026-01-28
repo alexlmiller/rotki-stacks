@@ -116,12 +116,14 @@ class StacksTransactions:
             contract_id = None
             function_name = None
             function_args: tuple[FunctionArg, ...] | None = None
+            memo = None
 
             if tx_type == StacksTxType.TOKEN_TRANSFER:
                 token_transfer = tx_data.get('token_transfer', {})
                 recipient_address = token_transfer.get('recipient_address')
                 amount_str = token_transfer.get('amount', '0')
                 amount = int(amount_str)
+                memo = token_transfer.get('memo')
             elif tx_type == StacksTxType.CONTRACT_CALL:
                 contract_call = tx_data.get('contract_call', {})
                 contract_id = contract_call.get('contract_id')
@@ -154,6 +156,7 @@ class StacksTransactions:
                 contract_id=contract_id,
                 function_name=function_name,
                 function_args=function_args,
+                memo=memo,
             )
         except (KeyError, ValueError, TypeError) as e:
             log.error(f'Failed to parse Stacks transaction: {e}')
