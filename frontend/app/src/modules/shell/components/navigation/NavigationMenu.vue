@@ -62,6 +62,11 @@ const navItems = computed<MenuItem[]>(() => {
           ...Routes.ACCOUNTS_SOLANA,
         },
         {
+          class: 'accounts-stacks',
+          type: 'item',
+          ...Routes.ACCOUNTS_STACKS,
+        },
+        {
           class: 'accounts-substrate',
           type: 'item',
           ...Routes.ACCOUNTS_SUBSTRATE,

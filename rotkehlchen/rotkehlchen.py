@@ -53,6 +53,8 @@ from rotkehlchen.chain.scroll.manager import ScrollManager
 from rotkehlchen.chain.scroll.node_inquirer import ScrollInquirer
 from rotkehlchen.chain.solana.manager import SolanaManager
 from rotkehlchen.chain.solana.node_inquirer import SolanaInquirer
+from rotkehlchen.chain.stacks.manager import StacksManager
+from rotkehlchen.chain.stacks.node_inquirer import StacksInquirer
 from rotkehlchen.chain.substrate.manager import SubstrateManager
 from rotkehlchen.chain.substrate.utils import (
     KUSAMA_NODES_TO_CONNECT_AT_START,
@@ -547,6 +549,13 @@ class Rotkehlchen:
                     helius=Helius(database=self.data.db),
                 ),
                 jupiter=Jupiter(database=self.data.db),
+                premium=self.premium,
+            ),
+            stacks_manager=StacksManager(
+                node_inquirer=StacksInquirer(
+                    greenlet_manager=self.greenlet_manager,
+                    database=self.data.db,
+                ),
                 premium=self.premium,
             ),
             msg_aggregator=self.msg_aggregator,

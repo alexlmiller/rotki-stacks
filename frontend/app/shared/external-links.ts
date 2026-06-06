@@ -20,6 +20,8 @@ export const heliusLink = 'https://dev.helius.xyz/dashboard/app';
 
 export const blockscoutLink = 'https://api.blockscout.com/account/api-key';
 
+export const hiroLink = 'https://platform.hiro.so/settings/api-keys';
+
 export const externalLinks = {
   premium: `${BASE_URL}products${UTM_PARAMS}`,
   premiumDevices: `${DOCS_BASE_URL}premium/devices`,

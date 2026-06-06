@@ -34,3 +34,7 @@ colibri/target
 **/.claude/
 out
 .codexbox-out/
+
+# Dev restart logs
+colibri.log
+*_restart.log

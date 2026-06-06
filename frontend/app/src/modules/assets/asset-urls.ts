@@ -108,6 +108,12 @@ export const explorerUrls: AssetExplorerUrls = {
     token: 'https://solscan.io/token/',
     transaction: 'https://solscan.io/tx/',
   },
+  [Blockchain.STACKS]: {
+    address: 'https://explorer.hiro.so/address/',
+    block: 'https://explorer.hiro.so/block/',
+    token: 'https://explorer.hiro.so/token/',
+    transaction: 'https://explorer.hiro.so/txid/',
+  },
   [Blockchain.ZKSYNC_LITE]: {
     address: 'https://zkscan.io/explorer/accounts/',
     block: 'https://zkscan.io/explorer/blocks/',

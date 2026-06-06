@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-This file provides guidance for AI coding assistants (e.g., OpenAI Codex CLI, Claude Code, GitHub Copilot Chat) working with code in this repository.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
 
@@ -9,740 +9,170 @@ Rotki is a privacy-focused crypto portfolio management and tax reporting applica
 - **Vue.js/TypeScript frontend** (Electron desktop app + web interface)
 - **Rust service** (Colibri - performance-critical components)
 
+### Fork Purpose: Stacks Integration
+
+This fork adds first-class Stacks blockchain support. See `.claude/docs/stacks-integration-prd.md` for full scope.
+
+### CRITICAL: Fork-Only Development
+
+**ALL work happens on this fork (alexlmiller/rotki-stacks), NOT upstream (rotki/rotki).**
+
+- All commits, branches, issues, and PRs target this fork
+- Never push to or create issues/PRs on upstream without explicit permission
+- Use `origin` (the fork) for all git operations, not `upstream`
+
+After cloning, configure: `gh repo set-default alexlmiller/rotki-stacks`
+
+### Fork Maintenance
+
+**When working on fork operations**, always consult `docs/stacks-chain/fork-maintenance-plan.md`:
+- Syncing with upstream rotki/rotki
+- Creating releases and version tags
+- Resolving merge conflicts
+- Branch cleanup and health monitoring
+
+**Quick sync command** (see fork-maintenance-plan.md for full process):
+```bash
+git checkout upstream-sync && git fetch upstream && git reset --hard upstream/develop && git push origin upstream-sync --force
+git checkout develop && git merge upstream-sync && git push origin develop
+```
+
+## Git Worktrees and Branch Policy
+
+**Small changes (1-3 lines, context files):** Direct to `develop`
+**Medium changes (bug fixes, multi-file):** `git worktree add .worktrees/fix -b bugfixes` → PR
+**Substantial (features, major changes):** `git worktree add .worktrees/feat-name -b feat/name` → PR
+
+If unsure, use a worktree + PR.
+
+## Documentation Hierarchy
+
+| Document | Purpose | When to Use |
+|----------|---------|-------------|
+| `CLAUDE.md` | Entry point, quick reference | Always loaded |
+| `docs/stacks-chain/fork-maintenance-plan.md` | Upstream sync, releases, branch management | **Syncing upstream, tagging releases, fork health checks** |
+| `docs/stacks-chain/release-process.md` | Creating releases, Docker publishing | **Cutting releases, troubleshooting CI, rollback** |
+| `docs/stacks-chain/dev-environment.md` | Running dev environment correctly | **Dev setup issues, CORS errors, service startup** |
+| `docs/stacks-chain/stacks-integration-prd.md` | WHAT to build (features, scope) | Planning new Stacks features |
+| `.claude/docs/architecture/quick-reference.md` | HOW patterns (common tasks) | During implementation |
+| `.claude/docs/architecture/*.md` | Detailed implementation guides | Phase-specific work |
+| `.claude/rules/*.md` | Code conventions | When writing code |
+
+**For fork maintenance**: Check `fork-maintenance-plan.md` first - it has Quick Reference section at top.
+**For Stacks features**: Read PRD first, then load relevant architecture files.
+
 ## Development Commands
 
 ### Prerequisites
-- Node.js 22+, pnpm 10+
-- Python 3.11+
-- Rust (stable toolchain)
-- uv (https://docs.astral.sh/uv/)
+- Node.js 22+, pnpm 10+, Python 3.11+, Rust (stable), uv
 
 ### Quick Start
+
+**IMPORTANT**: For Stacks development, use the documented setup in `docs/stacks-chain/dev-environment.md`.
+
+**Correct way to run all services:**
 ```bash
-# Install JS dependencies at repo root
-pnpm install
-
-# (Python) Create/sync virtual env via uv
-uv sync
-
-# Run full development environment (frontend + backend + colibri)
-pnpm dev
-
-# Run web-only development (no Electron)
-pnpm dev:web
-```
-
-### Backend Development
-```bash
-# Run backend server
-uv run python -m rotkehlchen --api-port 4242 --websockets-port 4333
-
-# Run all backend tests
-uv run python pytestgeventwrapper.py
-
-# Run specific test file
-uv run python pytestgeventwrapper.py rotkehlchen/tests/api/test_assets.py
-
-# Run specific test
-uv run python pytestgeventwrapper.py rotkehlchen/tests/api/test_assets.py::test_add_user_asset
-
-# Filter tests with -k
-uv run python pytestgeventwrapper.py -k add_user_asset
-
-# Lint Python code
-uv run make lint
-
-# Format Python code
-uv run make format
-```
-
-### Frontend Development
-**IMPORTANT: All frontend commands should be run from the `frontend/` directory, NOT `frontend/app/`**
-
-```bash
-# Navigate to frontend directory first
 cd frontend
-
-# Install dependencies
-pnpm install --frozen-lockfile
-
-# Lint and fix
-pnpm run lint:fix
-
-# Run the app
-pnpm run dev
-
-# Clean frontend modules
-pnpm run clean:modules
-
-# Build frontend
-pnpm run build
-
-# Run tests
-pnpm run test:unit
-
-# Type check
-pnpm run typecheck
+export PATH="$HOME/.cargo/bin:$PATH"
+source ../.venv/bin/activate
+pnpm dev:web  # Starts backend + Colibri (with CORS) + frontend
 ```
 
-### Colibri (Rust) Service
+**Alternative (traditional):**
 ```bash
-cd colibri
-cargo build
-cargo run -- --database ../data/global.db --port 4343
+pnpm install && uv sync    # Install dependencies
+pnpm dev                   # Full dev environment (Electron)
+```
+
+**Common mistake**: Manually starting services individually leads to CORS issues. Use `pnpm dev:web` from frontend directory.
+
+### Backend
+```bash
+uv run python -m rotkehlchen --api-port 4242 --websockets-port 4333  # Run server
+uv run python pytestgeventwrapper.py                                  # All tests
+uv run python pytestgeventwrapper.py -k test_name                     # Specific test
+uv run make lint && uv run make format                                # Lint/format
+```
+
+### Frontend
+**Run from `frontend/` directory, NOT `frontend/app/`**
+```bash
+cd frontend
+pnpm install --frozen-lockfile
+pnpm run dev && pnpm run test:unit && pnpm run typecheck
 ```
 
 ## Code Architecture
 
 ### Backend Structure
-- `rotkehlchen/` - Main Python package
-  - `api/` - REST API and WebSocket handlers
-  - `chain/` - Blockchain integrations (Ethereum, Bitcoin, L2s)
-  - `exchanges/` - Exchange integrations (Binance, Kraken, etc.)
-  - `accounting/` - Tax calculation and accounting logic
-  - `db/` - Database layer with SQLite
-  - `externalapis/` - External service integrations
-  - `globaldb/` - Global assets database management
-  - `history/` - Transaction and event history handling
+- `rotkehlchen/chain/` - Blockchain integrations (Ethereum, Bitcoin, L2s)
+- `rotkehlchen/exchanges/` - Exchange integrations
+- `rotkehlchen/accounting/` - Tax calculation logic
+- `rotkehlchen/history/events/` - Core event abstraction
 
 ### Frontend Structure
-- `frontend/app/` - Vue.js Electron application
-  - `src/` - Application source code
-    - `modules/` - Feature modules. Each module groups its components, composables, Pinia stores, and types together (e.g. `modules/balances/`, `modules/dashboard/`, `modules/settings/`). The `modules/core/` and `modules/shell/` parents hold cross-cutting building blocks.
-    - `pages/` - Route pages
-    - `layouts/` - Top-level layout components
-    - `locales/` - i18n translation files
-    - `router/` - Route definitions
-    - `plugins/` - Vue/Pinia plugin setup
-  - `electron/` - Electron main process code
-  - `tests/unit/` - Unit-test setup, fixtures, and mocks (specs themselves are co-located next to the source files in `src/`)
-  - `tests/e2e/` - Playwright E2E specs, page objects, and helpers
-
-### Key Architectural Patterns
-1. **API Communication**: Frontend communicates with backend via REST API (port 4242) and WebSockets (port 4333)
-2. **Database**: SQLite for user data, separate global database for assets
-3. **State Management**: Pinia stores in frontend, coordinated with backend state
-4. **Event System**: History events are the core abstraction for all blockchain/exchange activities
-5. **Plugin Architecture**: Modular design for adding new blockchains and exchanges
-
-## Developing
-
-### Frontend Development Guidelines
-
-#### Directory Structure
-- All frontend commands should be run from `frontend/` directory, NOT `frontend/app/`
-- The main application code is in `frontend/app/src/`
-
-### Code Organization & Maintainability
-
-- **Split complex logic**: Break down large templates and script logic into smaller, focused composables
-- **Component decomposition**: Split large components into smaller, reusable sub-components
-- **Logical separation**: Each composable should have a single, well-defined responsibility
-- **Maintainability focus**: Prioritize code readability and maintainability over brevity
-
-#### Lint & Warning Hygiene
-- **Leave code cleaner than you found it**: When touching a file, fix any existing lint warnings in the code you modify. The goal is to steadily reduce the overall warning count over time.
-- **Avoid type assertions (`as`)**: Prefer type guards, `instanceof`, `satisfies`, or discriminated unions over `as` casts. Type assertions bypass the compiler and hide bugs.
-  ```typescript
-  // ✅ Correct — type guard
-  function isUser(value: unknown): value is User {
-    return typeof value === 'object' && value !== null && 'id' in value;
-  }
-
-  // ✅ Correct — satisfies (validates shape without widening)
-  const config = { timeout: 5000 } satisfies Partial<Config>;
-
-  // ✅ Correct — discriminated union
-  if (event.type === 'trade') { /* event is narrowed */ }
-
-  // ❌ Incorrect — type assertion
-  const user = response.data as User;
-  const element = event.target as HTMLInputElement;
-  ```
-
-#### Vue.js and TypeScript Conventions
-- Use VueUse utilities for reactive state management
-- **IMPORTANT: Use `get()` and `set()` from VueUse instead of `.value` when working with refs**
-- **Floating Promises**: Never use `void` for floating promises. Instead, use `startPromise()` from `@shared/utils`:
-  ```typescript
-  // ✅ Correct
-  import { startPromise } from '@shared/utils';
-  startPromise(someAsyncFunction());
-
-  // ❌ Incorrect
-  void someAsyncFunction();
-  ```
-
-#### Explicit TypeScript Typing Requirements
-
-- **Always use explicit types for refs**: `ref<boolean>(false)` instead of `ref(false)`
-- **Always use explicit types for computed**: `computed<boolean>(() => ...)` instead of `computed(() => ...)`
-- **Always return explicit types from functions**: `function getName(): string { ... }`
-- **Always type reactive variables**: `const isLoading = ref<boolean>(false)`
-- **Always type computed properties**: `const fullName = computed<string>(() => ...)`
-- If a ref type can be undefined and the default value is undefined, **Don't explicitly put it as type or default value**: `const newId = ref<number>()`
-- **Always use `{ useScope: 'global' }` parameter for `useI18n()`**: `const { t } = useI18n({ useScope: 'global' });`
-
-#### Correct Examples:
-
-```typescript
-// ✅ Correct - Explicit typing with VueUse get/set
-import { get, set } from '@vueuse/shared';
-
-const isVisible = ref<boolean>(true);
-const count = ref<number>(0);
-const items = ref<string[]>([]);
-const user = ref<User>();
-
-const { t } = useI18n({ useScope: 'global' });
-
-const isEven = computed<boolean>(() => get(count) % 2 === 0);
-const formattedName = computed<string>(() => `${get(firstName)} ${get(lastName)}`);
-const newId = ref<number>(); // this newId type is number | undefined.
-
-function getUserById(id: number): User | undefined {
-  return get(users).find(user => user.id === id) || undefined;
-}
-
-function updateCount(newValue: number): void {
-  set(count, newValue);
-}
-
-async function fetchData(): Promise<ApiResponse> {
-  return await $fetch('/api/data');
-}
-```
-
-#### Incorrect Examples:
-
-```typescript
-// ❌ Incorrect - Missing explicit types
-const isVisible = ref(true);
-const count = ref(0);
-const items = ref([]);
-const user = ref();
-
-const { t } = useI18n();
-
-const isEven = computed(() => count.value % 2 === 0);
-const formattedName = computed(() => `${firstName.value} ${lastName.value}`);
-const newId = ref<number | undefined>(undefined);
-
-function getUserById(id: number) {
-  return users.value.find(user => user.id === id) || undefined;
-}
-
-async function fetchData() {
-  return await $fetch('/api/data');
-}
-```
-
-- VueUse utilities like `get()`, `set()`, `toRefs()`, `computed()` etc. are auto-imported
-- Use Pinia for state management - stores live alongside their feature module as `frontend/app/src/modules/<feature>/use-*-store.ts` (e.g. `modules/balances/use-balances-store.ts`)
-- TypeScript is strict - ensure proper typing
-
-#### Setup Script Organization (Preferred Order)
-1. Imports
-2. Definitions (`defineProps`, `defineEmits`, etc.)
-3. I18n & vue-router
-4. Reactive state variables
-5. Pinia stores
-6. Composables
-7. Computed properties
-8. Methods
-9. Watchers
-10. Lifecycle hooks
-11. Exposed methods
-
-#### Component Conventions
-
-##### Props — destructured with defaults (Vue 3.5+)
-- Prefer destructured props with inline defaults over `withDefaults`:
-  ```typescript
-  // ✅ Preferred (Vue 3.5+)
-  const { title, count = 0, disabled = false } = defineProps<{
-    title: string;
-    count?: number;
-    disabled?: boolean;
-  }>();
-
-  // ❌ Legacy — avoid in new code
-  const props = withDefaults(defineProps<{
-    title: string;
-    count?: number;
-    disabled?: boolean;
-  }>(), {
-    count: 0,
-    disabled: false,
-  });
-  ```
-- For mutable default values (arrays, objects), use a factory function:
-  ```typescript
-  const { items = () => [], filters = () => ({}) } = defineProps<{
-    items?: string[];
-    filters?: Record<string, string>;
-  }>();
-  ```
-- **Reactive prop passing rules** — destructured props are reactive in `computed()`, `watch()`, and templates, but they are **not** `Ref<T>` objects. When passing to composables or watchers:
-  ```typescript
-  const { category, chains, address } = defineProps<{
-    category: string;
-    chains: string[];
-    address: string;
-  }>();
-
-  // ✅ watch() — wrap in getter
-  watch(() => category, (val) => { ... });
-
-  // ✅ MaybeRefOrGetter<T> param — pass as getter
-  const helper = useMyComposable(() => category);
-
-  // ✅ MaybeRef<T> or Ref<T> param — wrap with toRef
-  const data = useOtherComposable(toRef(() => chains));
-
-  // ✅ computed() — use directly (reactive)
-  const label = computed<string>(() => `${category}-${address}`);
-
-  // ❌ Don't use toRef when a getter suffices (MaybeRefOrGetter)
-  const helper = useMyComposable(toRef(() => category));
-
-  // ❌ Don't use toRefs(props) — destructure directly
-  const props = defineProps<{ ... }>();
-  const { category } = toRefs(props);
-  ```
-
-##### Composable argument conventions
-- When authoring composables, accept `MaybeRefOrGetter<T>` for maximum flexibility and use `toValue()` internally to normalize inputs
-- `toValue()` handles plain values, refs, and getter functions uniformly
-- Use `onWatcherCleanup()` (Vue 3.5+) instead of `onCleanup` callback parameter for cleaner extraction into helper functions
-
-##### Emits — typed tuple syntax
-- Use the typed tuple syntax for emit definitions:
-  ```typescript
-  const emit = defineEmits<{
-    'update:msg': [msg: string];
-    'delete': [id: number];
-  }>();
-  ```
-
-##### v-model — `defineModel` (Vue 3.4+)
-- Use `defineModel` for all v-model bindings instead of manual prop + emit:
-  ```typescript
-  // ✅ Correct — defineModel
-  const modelValue = defineModel<string>({ required: true });
-  const selected = defineModel<number>('selected');
-  const filters = defineModel<Filters>('filters', { default: () => ({}) });
-
-  // ❌ Incorrect — manual prop + emit for v-model
-  const props = defineProps<{ modelValue: string }>();
-  const emit = defineEmits<{ 'update:modelValue': [value: string] }>();
-  ```
-
-##### Template refs — `useTemplateRef` (Vue 3.5+)
-- Use `useTemplateRef` for typed template refs:
-  ```typescript
-  // ✅ Correct — Vue 3.5+
-  import { useTemplateRef } from 'vue';
-  const formRef = useTemplateRef<InstanceType<typeof MyForm>>('formRef');
-
-  // ❌ Incorrect — old pattern
-  const formRef = ref<InstanceType<typeof MyForm>>();
-  ```
-  ```html
-  <MyForm ref="formRef" />
-  ```
-
-##### Other conventions
-- Use `$attrs` in templates instead of `useAttrs`
-
-#### Pinia Store Structure
-1. State definitions
-2. Computed getters
-3. Actions
-4. Optional watchers
-
-#### Styling
-- Use Tailwind CSS for all styling
-- Scoped CSS modules (`<style module>`) should only be used for Vue `TransitionGroup` animations
-- Do not use scoped SCSS with BEM naming conventions
-
-#### Localization
-- For the localization files (en.json, es.json, etc.), the keys should be ordered alphabetically.
-- Avoid dynamic keys for translations, as they can break the linter.
-
-#### Testing
-- Run all tests with `pnpm run test:unit` from `frontend/` directory
-- Run a single test file: `pnpm run test:unit src/modules/path/to/file.spec.ts` (no `-- --run` needed)
-- Use Vitest for unit tests with Vue Test Utils
-- **Unit test file naming**: `.spec.ts` files should follow the naming of the tested file and be located in the same folder
-  ```
-  // Example structure:
-  src/modules/balances/use-balances-store.ts
-  src/modules/balances/use-balances-store.spec.ts
-
-  src/modules/accounts/use-account-import-export.ts
-  src/modules/accounts/use-account-import-export.spec.ts
-  ```
-- **All unit tests are co-located** next to the source file they test (not in a separate `tests/` directory)
-- Test descriptions must follow the `it('should ...'` pattern
-- Component tests should follow existing patterns in co-located `*.spec.ts` files
-
-#### Fast checks via pnpm scripts
-
-All checks are run from the `frontend/` directory through the workspace scripts — do not invoke the underlying tools directly. To avoid running everything on every iteration, prefer these script-only paths:
-
-- **Vitest — narrow to a file or folder** (already path-aware):
-  ```bash
-  pnpm run test:unit src/modules/dashboard/edit-snapshot/EditSnapshotDialog.spec.ts
-  pnpm run test:unit src/modules/dashboard/edit-snapshot/    # whole folder
-  pnpm run test:unit:watch src/modules/<feature>/<file>.spec.ts
-  ```
-  Positional args are forwarded to `vitest run --coverage`. No `-- --run` separator needed.
-
-- **Lint only what you've staged**:
-  ```bash
-  git add <paths>
-  pnpm run lint-staged           # runs eslint on staged files; stylelint on staged .vue/.scss
-  ```
-  This is the canonical fast lint loop and only touches files in the git index. The same hook runs automatically on commit (via Husky), so passing it locally first means the commit won't bounce.
-
-- **Lint the whole project (full pass)**:
-  ```bash
-  pnpm run lint        # report-only
-  pnpm run lint:fix    # auto-fix what it can
-  ```
-  ESLint scans everything and there is no per-file pnpm script — use `lint-staged` (above) for the fast path.
-
-- **Stylelint** is wired the same way: `pnpm run lint-staged` covers staged `.vue`/`.scss`; `pnpm run lint:style` does the full pass.
-
-- **Typecheck — incremental, project-wide**:
-  ```bash
-  pnpm run typecheck   # vue-tsc --build --force; reuses the .tsbuildinfo cache once warmed
-  ```
-  `vue-tsc --build` has no per-file mode, but after the first cold run subsequent passes only re-check files affected by your change (usually a few seconds). For instant single-file feedback, rely on Volar in the IDE — it uses the same `tsconfig`.
-
-Typical fast pre-commit loop, all from `frontend/`:
-
-```bash
-pnpm run test:unit src/modules/<feature>/<file>.spec.ts   # only your spec
-git add src/modules/<feature>/<file>.ts src/modules/<feature>/<file>.spec.ts
-pnpm run lint-staged                                       # only your files
-pnpm run typecheck                                         # incremental
-```
-
-### Contribution guide
-
-The contribution guide can be seen here: https://docs.rotki.com/contribution-guides/contribute-as-developer.html
-
-### Exchange Addition
-
-- To add an exchange you will need to add the new exchange under the `exchanges/` directory. A nice example is bitfinxex.py
-- For each exchange you need to implement the basic method of the `ExchangeInterface` superclass:
-  - Authentication for the api key/secret whatever the exchange API uses.
-  - Fetch balances from the exchange
-  - Fetch deposits/withdrawals (also called asset movements) and trades.
-- You will need to create some tests with mocked data
-
-### Adding a Frontend Setting
-
-When adding a new setting to the frontend, follow these steps:
-
-#### 1. Register IDs in `frontend/app/src/modules/settings/setting-highlight-ids.ts`
-
-- Add a **highlight ID** to `SettingsHighlightIds` (used to scroll-to and highlight the setting):
-  ```typescript
-  export const SettingsHighlightIds = {
-    // ... existing entries (keep alphabetically sorted)
-    MY_NEW_SETTING: 'setting-my-new-setting',
-  } as const;
-  ```
-- If the setting belongs to a **new category**, also add a category ID to `SettingsCategoryIds`:
-  ```typescript
-  export const SettingsCategoryIds = {
-    // ... existing entries
-    MY_CATEGORY: 'my-category',
-  } as const;
-  ```
-
-#### 2. Create the setting component
-
-Create the component under `frontend/app/src/modules/settings/` (alongside the other setting components). Use `SettingsOption` as a wrapper — it handles debounced updates, success/error messages, and API calls.
-
-```vue
-<script setup lang="ts">
-import SettingsOption from '@/modules/settings/controls/SettingsOption.vue';
-
-const { t } = useI18n({ useScope: 'global' });
-const value = ref<boolean>(false);
-</script>
-
-<template>
-  <SettingsOption
-    setting="myNewSetting"
-    :error-message="t('my_setting.error')"
-  >
-    <template #title>{{ t('my_setting.title') }}</template>
-    <template #default="{ error, success, updateImmediate }">
-      <RuiSwitch
-        v-model="value"
-        :success-messages="success"
-        :error-messages="error"
-        @update:model-value="updateImmediate($event)"
-      />
-    </template>
-  </SettingsOption>
-</template>
-```
-
-`SettingsOption` accepts `setting` (backend setting), `frontendSetting` (frontend-only), or `sessionSetting` (session-only) to target the right store.
-
-#### 3. Add the setting to its category component
-
-In the relevant category component (e.g., `GeneralSettingsCategory.vue`), wrap the new setting in a `SettingsItem` with the highlight ID:
-
-```vue
-<SettingsItem :id="SettingsHighlightIds.MY_NEW_SETTING">
-  <template #title>{{ t('my_setting.title') }}</template>
-  <template #subtitle>{{ t('my_setting.subtitle') }}</template>
-  <MyNewSetting />
-</SettingsItem>
-```
-
-The `:id` prop is what enables scroll-to-highlight from the settings search.
-
-#### 4. Register in settings search (`frontend/app/src/modules/settings/use-settings-search.ts`)
-
-Add an entry to the appropriate `TabGroup` and `CategoryDef` in the `tabs` array inside `getEntries()`:
-
-```typescript
-{ tab: routes.SETTINGS_GENERAL, categories: [
-  { categoryId: SettingsCategoryIds.GENERAL, children: [
-    // ... existing entries
-    {
-      texts: [t('general_settings.title'), t('my_setting.title')],
-      highlightId: SettingsHighlightIds.MY_NEW_SETTING,
-      keywords: [t('my_setting.subtitle')],
-    },
-  ] },
-] },
-```
-
-- `texts` — breadcrumb path shown in search results (category name, then setting name)
-- `highlightId` — links to the `SettingsItem` `:id` for scroll-and-highlight
-- `keywords` — optional extra search terms (subtitles, descriptions)
-
-#### 5. If adding a new category
-
-If the setting requires a new category on an existing settings page:
-
-1. Create a new category component wrapping settings in `<SettingCategory>` + `<SettingsItem>`
-2. In the page file (e.g., `frontend/app/src/pages/settings/general/index.vue`):
-   - Add the category ID to the `navigation` array
-   - Add the category component to the template with `:id="SettingsCategoryIds.MY_CATEGORY"`
-
-```vue
-<script setup lang="ts">
-const navigation = computed<{ id: string; label: string }[]>(() => [
-  // ... existing entries
-  { id: SettingsCategoryIds.MY_CATEGORY, label: t('my_category.title') },
-]);
-</script>
-
-<template>
-  <SettingsPage :navigation="navigation">
-    <!-- ... existing categories -->
-    <MyCategorySettings :id="SettingsCategoryIds.MY_CATEGORY" />
-  </SettingsPage>
-</template>
-```
-
-#### 6. Add translations
-
-Add all labels, subtitles, and error messages to `frontend/app/src/locales/en.json` (keys must be alphabetically sorted).
-
-#### Key files reference
-
-| Purpose | File |
-|---------|------|
-| Highlight & category IDs | `frontend/app/src/modules/settings/setting-highlight-ids.ts` |
-| Search registration | `frontend/app/src/modules/settings/use-settings-search.ts` |
-| Highlight/scroll logic | `frontend/app/src/modules/settings/use-settings-highlight.ts` |
-| Page layout with navigation | `frontend/app/src/modules/settings/controls/SettingsPage.vue` |
-| Setting update wrapper | `frontend/app/src/modules/settings/controls/SettingsOption.vue` |
-| Setting layout wrapper | `frontend/app/src/modules/settings/controls/SettingsItem.vue` |
-| Category visual grouping | `frontend/app/src/modules/settings/SettingCategory.vue` |
-| Settings pages | `frontend/app/src/pages/settings/*/index.vue` |
-
-### Adding EVM protocol decoders
-
-As an example decoder, we can look at [MakerDAO](https://github.com/rotki/rotki/blob/1039e04304cc034a57060757a1a8ae88b3c51806/rotkehlchen/chain/ethereum/modules/makerdao/decoder.py).
-
-It needs to contain a class that inherits from the `DecoderInterface` and is named `ModulenameDecoder`.
-
-Note: If your new decoder decodes an airdrop's claiming event and this airdrop is present in the [data repo airdrop index](https://github.com/rotki/data/blob/develop/airdrops/index_v2.json) with `has_decoder` as `false`, please update that also.
-
-#### Counterparties
-
-It needs to implement a method called `counterparties()` which returns a list of counterparties that can be associated with the transactions of this module. Most of the time these are protocol names like `uniswap-v1`, `makerdao_dsr`, etc.
-
-These are defined in the `constants.py` file.
-
-#### Mappings and rules
-
-The `addresses_to_decoders()` method maps any contract addresses that are identified in the transaction with the specific decoding function that can decode it. This is optional.
-
-The `decoding_rules()` define any functions that should simply be used for all decoding so long as this module is active. This is optional.
-
-The `enricher_rules()` define any functions that would be used as long as this module is active to analyze already existing decoded events and enrich them with extra information we can decode thanks to this module. This is optional.
-
-#### Decoding explained
-
-In very simple terms, the way the decoding works is that we go through all the transactions of the user and we apply all decoders to each transaction event that touches a tracked address. The first decoder that matches creates a decoded event.
-
-The event creation consists of creating a `HistoryBaseEntry`. These are the most basic form of events in rotki and are used everywhere. The fields as far as decoded transactions are concerned are explained below:
-
-- `group_identifier` is always the transaction hash. This identifies history events in the same transaction.
-- `sequence_index` is the order of the event in the transaction. Many times this is the log index, but decoders tend to play with this to make events appear in a specific way.
-- `asset` is the asset involved in the event.
-- `balance` is the balance of the involved asset.
-- `timestamp` is the Unix timestamp **in milliseconds**.
-- `location` is the location. Almost always `Location.BLOCKCHAIN` unless we got a specific location for the protocol of the transaction.
-- `location_label` is the initiator of the transaction.
-- `notes` is the human-readable description to be seen by the user for the transaction.
-- `event_type` is the main type of the event. (see next section)
-- `event_subtype` is the subtype of the event. (see next section)
-- `counterparty` is the counterparty/target of the transaction. For transactions that interact with protocols, we tend to use the `CPT_XXX` constants here.
-
-#### Event type/subtype and counterparty
-
-Each combination of event type and subtype and counterparty creates a new unique event type. This is important as they are all treated differently in many parts of rotki, including the accounting. But most importantly this is what determines how they appear in the UI!
-
-The mapping of these HistoryEvents types, subtypes, and categories is done in [rotkehlchen/accounting/constants.py](https://github.com/rotki/rotki/blob/17b4368bc15043307fa6acf536b5237b3840c40e/rotkehlchen/accounting/constants.py).
-
-#### Things to keep in mind
-
-- All byte signatures should be a constant byte literal. Like ```DEPOSIT_TOPIC: Final = b'\xdc\xbc\x1c\x05$\x0f1\xff:\xd0g\xef\x1e\xe3\\\xe4\x99wbu.:\tR\x84uED\xf4\xc7\t\xd7'```
-- Don't put assets as constants. If you need a constant just use the asset identifier as a string and compare against it.
-
-## Testing Strategy
-
-### Backend Testing
-- Uses pytest with gevent for async testing
-- Extensive fixtures in `rotkehlchen/tests/fixtures/`
-- Mock external APIs for deterministic tests
-- Database fixtures for integration testing
-- Make sure that all EVM addresses constant literals you add in the code are properly checksummed. The output of to_checksum_address() is what they should be. Do not use string_to_evm_address(). This does not checksum the address.
-- Do not VCR tests. Let the human developers do it. That means do not put `@pytest.mark.vcr` on any decoder tests you write.
-- For Etherscan use the api key from ETHERSCAN_API_KEY env variable and use etherscan v2. It's as v1 but using https://api.etherscan.io/v2/api?chainid=${chainid} . As described here: https://docs.etherscan.io/etherscan-v2. If there is no API key in the env variable then prompt the user for it when you need to query etherscan.
-
-### Frontend Testing
-- Vitest for unit tests with Vue Test Utils
-- **Unit tests are co-located**: `.spec.ts` files live next to the source file they test in `frontend/app/src/`
-- Test utilities (fixtures, mocks, setup) remain in `frontend/app/tests/unit/`
-- Playwright for E2E testing (specs in `frontend/app/tests/e2e/specs/`, page objects in `frontend/app/tests/e2e/pages/`, helpers in `frontend/app/tests/e2e/helpers/`)
-- Test descriptions must follow the `it('should ...'` pattern
-
-## Packaging
-```bash
-# Package for distribution (requires proper environment setup)
-python package.py
-```
-
-## Important Configuration Files
-- `pyproject.toml` - Python project configuration, linting rules
-- `frontend/app/package.json` - Frontend dependencies and scripts
-- `Makefile` - Common development tasks
-- `.github/workflows/` - CI/CD pipelines
-
-## Development Tips
-1. Always run through `pytestgeventwrapper.py` for backend tests to ensure proper gevent patching
-2. Frontend uses strict TypeScript - ensure types are properly defined
-3. Follow existing code patterns - the codebase has established conventions
-4. Use the existing test infrastructure - comprehensive fixtures are available
-5. WebSocket messages follow specific format - check `api/websockets/typedefs.py`
-6. For all python backend constants make sure to use the `Final` type specifier.
-7. Never iterate over `cursor.execute(...).fetchall()`. `fetchall()` already walks the cursor and materializes every row into a list, so a following `for` loop iterates the data a second time. When you only need a single pass, iterate the cursor directly: `for row in cursor.execute(...):`. Reserve `fetchall()` for when you genuinely need the materialized list (e.g. to reuse it, get its length, or assert on it in a test). The same applies to a write cursor — prefer a read cursor (`self.conn.read_ctx()`) for plain `SELECT`s.
-
-## Committing
-- Commits should be just to the point, not too long and not too short.
-- Commit titles should not exceed 50 characters.
-- Give a description of what the commit does in a short title. If more information is needed, then add a blank line and afterward elaborate with as much information as needed.
-- Commits should do one thing; if two commits both do the same thing, that's a good sign they should be combined.
-- Do not add Co-Authored-By entries for any AI tool.
-
-## Opening PRs
-- Do not add Co-Authored-By entries for any AI tool.
-
-## Common Issues & Solutions
-- Frontend build fails: Run `pnpm run clean:modules` then `pnpm install --frozen-lockfile`
-- Backend gevent errors: Always use `pytestgeventwrapper.py`, never direct pytest
-- WebSocket connection issues: Check ports 4242 (API) and 4333 (WS) are free
+- `frontend/app/src/` - Vue.js application
+- `frontend/app/src/store/` - Pinia state management
+- `frontend/app/src/composables/` - Vue composition utilities
+
+### Key Patterns
+- REST API (port 4242) + WebSockets (port 4333)
+- `HistoryBaseEntry` is the core abstraction for all activities
+- Reference implementation for new chains: `rotkehlchen/chain/solana/`
+
+## Conventions Summary
+
+**Frontend** (details in `.claude/rules/frontend-conventions.md`):
+- Use `get()`/`set()` from VueUse instead of `.value`
+- Explicit types: `ref<boolean>(false)`, explicit return types
+- `useI18n({ useScope: 'global' })` always
+- Tailwind CSS only; `startPromise()` for floating promises
+
+**Backend** (details in `.claude/rules/backend-conventions.md`):
+- Always run tests through `pytestgeventwrapper.py`
+- All EVM addresses MUST be checksummed
+- Byte signatures as constant literals with `Final`
+- Don't use asset objects as constants; use identifier strings
+
+## Testing
+
+- **Backend**: `uv run python pytestgeventwrapper.py` (never direct pytest)
+- **Frontend**: `pnpm run test:unit` from `frontend/` directory
+- EVM addresses must be checksummed (use `to_checksum_address()`)
+- Do not add `@pytest.mark.vcr` to decoder tests
 
 ## Code Review Guidelines
 
-When reviewing rotki code, follow these principles to avoid false positives:
+### No Assumptions Policy
+- Do NOT assume error handling is missing without tracing implementations
+- ALWAYS trace function calls to actual implementations
 
-### 1. No Assumptions Policy
-- Do NOT assume error handling is missing without tracing function implementations
-- Do NOT assume validation is missing without checking type definitions
-- Do NOT assume patterns are incorrect without understanding project conventions
-- ALWAYS trace function calls to their actual implementations
+### Known Safe Functions
+`request_get()`, `globaldb_get_*()`, `get_or_create_evm_asset()` - handle errors internally
 
-### 2. Known Safe Functions (with internal error handling)
-- `request_get()` - HTTP wrapper that handles all errors internally
-- `globaldb_get_*()` - Database functions with built-in error handling
-- `get_or_create_evm_asset()` - Asset creation with validation
-- Functions from `rotkehlchen.utils.network` generally handle errors
+### Pre-validated Types
+`ChainID`, `ChecksumEvmAddress`, `Asset`, `TimestampMS` - validated on construction
 
-### 3. Pre-validated Types (no runtime validation needed)
-- `ChainID` - Enum type with compile-time validation
-- `ChecksumEvmAddress` - Validated on construction
-- `Asset` - Type-safe asset representation
-- `TimestampMS` - Type-safe timestamp
-- Any `Final` typed constants are immutable
+## Common Issues
 
-### 4. Evidence-Based Review Requirements
-For each issue identified:
-- Provide exact code line showing the problem
-- Trace the full code path to verify issue exists
-- Check if utility functions handle the concern
-- Verify type system doesn't provide guarantees
-- Explain why existing code doesn't mitigate it
+- **Frontend build fails**: `pnpm run clean:modules` then `pnpm install --frozen-lockfile`
+- **Backend gevent errors**: Use `pytestgeventwrapper.py`, never direct pytest
+- **"Invalid XXX account in DB"**: Address not checksummed - use `to_checksum_address()`
 
-### 5. Common False Positive Patterns to Avoid
-- Flagging missing try-catch around `request_get()`
-- Suggesting ChainID validation when it's an enum
-- Assuming KeyError isn't caught without checking try-except blocks
-- Recommending error handling that exists in called functions
+## Commits and PRs
 
-### 6. Systematic Code Review Process
-When reviewing code changes, follow this systematic approach:
-
-1. **Check for pending review comments first** - Look for any unresolved comments from repository maintainers or other reviewers
-2. **Line-by-line examination** - Read every changed line carefully, don't skim or make assumptions
-3. **Error handling verification**:
-   - Check if dictionary/list access handles KeyError/IndexError
-   - Verify API responses handle missing or malformed data
-   - Ensure error paths have appropriate logging
-4. **Code efficiency**:
-   - Look for unnecessary comparisons or redundant operations
-   - Check for optimizable conditions
-   - Verify no unnecessary loops or repeated calculations
-5. **Logging completeness**:
-   - Error conditions should be logged with context
-   - Empty else/except blocks should explain why they're empty
-6. **Style and formatting**:
-   - Check spacing in strings and error messages
-   - Verify consistent formatting with project standards
-7. **Edge case analysis**:
-   - What happens with empty inputs?
-   - How are None/null values handled?
-   - Are array bounds checked?
-8. **Test coverage** - Verify new functionality has appropriate tests
+- Follow worktree/branch policy (see "Git Worktrees and Branch Policy" section above)
+- Commit titles: max 50 characters, imperative mood
+- Do not add Co-Authored-By entries for any AI tool
+- Target `bugfixes` branch for medium changes, feature branches for substantial changes
+- Only small changes (1-3 lines, context files) go direct to `develop`
 
 ## Memories
-- EVM addresses MUST be checksummed:
-  ✅ CORRECT: '0x5A0b54D5dc17e0AadC383d2db43B0a0D3E029c4c'
-  ❌ WRONG: '0x5a0b54d5dc17e0aadc383d2db43b0a0d3e029c4c'
-- If you see "Invalid XXX account in DB" it's almost certain the address is not checksummed. Always checksum addresses you use with to_checksum_address
-- `string_to_evm_address()` is just a no-op typing function. It will not checksum the literal argument to a checksummed evm address. That means you should make sure to only give checksummed EVM address literals to it
+
+- EVM addresses MUST be checksummed: `'0x5A0b54D5dc17e0AadC383d2db43B0a0D3E029c4c'` (not lowercase)
+- `string_to_evm_address()` is a no-op typing function - will NOT checksum
+
+## Additional Resources
+
+- Contribution Guide: https://docs.rotki.com/contribution-guides/contribute-as-developer.html
+- Config files: `pyproject.toml`, `frontend/app/package.json`, `Makefile`

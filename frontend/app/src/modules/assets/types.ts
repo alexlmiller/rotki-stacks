@@ -116,6 +116,10 @@ export const SOLANA_TOKEN = 'solana token';
 
 export const SOLANA_CHAIN = 'solana';
 
+export const STACKS_TOKEN = 'stacks token';
+
+export const STACKS_CHAIN = 'stacks';
+
 export const CUSTOM_ASSET = 'custom asset';
 
 export function isSpammableAssetType(assetType?: string | null): boolean {

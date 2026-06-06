@@ -30,6 +30,10 @@ function isSolanaChain(info: ChainInfo): boolean {
   return info.type === ChainType.SOLANA;
 }
 
+function isStacksChain(info: ChainInfo): boolean {
+  return info.type === ChainType.STACKS;
+}
+
 interface UseSupportedChainsReturn {
   allEvmChains: Readonly<Ref<EvmChainEntries>>;
   allTxChainsInfo: ComputedRef<ChainInfo[]>;
@@ -53,8 +57,10 @@ interface UseSupportedChainsReturn {
   isEvmCompatible: (chain: string) => boolean;
   isEvmLikeChains: (chain: string) => boolean;
   isSolanaChains: (chain: string) => boolean;
+  isStacksChains: (chain: string) => boolean;
   matchChain: (location: string) => Blockchain | undefined;
   solanaChainsData: ComputedRef<ChainInfo[]>;
+  stacksChainsData: ComputedRef<ChainInfo[]>;
   supportedChains: Readonly<Ref<SupportedChains>>;
   supportsTransactions: (chain: string) => boolean;
   txChainsToLocation: ComputedRef<string[]>;
@@ -89,6 +95,10 @@ export const useSupportedChains = createSharedComposable((): UseSupportedChainsR
     get(supportedChains).filter(isSolanaChain),
   );
 
+  const stacksChainsData = computed<ChainInfo[]>(() =>
+    get(supportedChains).filter(isStacksChain),
+  );
+
   const txEvmChains = computed<EvmChainInfo[]>(() =>
     get(evmChainsData).filter(x => x.id !== Blockchain.AVAX),
   );
@@ -101,6 +111,7 @@ export const useSupportedChains = createSharedComposable((): UseSupportedChainsR
   const decodableTxChainsInfo = computed<ChainInfo[]>(() => [
     ...get(evmAndEvmLikeTxChainsInfo),
     ...get(solanaChainsData),
+    ...get(stacksChainsData),
   ]);
 
   const allTxChainsInfo = computed<ChainInfo[]>(() => [
@@ -122,6 +133,7 @@ export const useSupportedChains = createSharedComposable((): UseSupportedChainsR
   const evmLikeChainSet = computed<Set<string>>(() => new Set(get(evmLikeChainsData).map(x => x.id)));
   const btcChainSet = computed<Set<string>>(() => new Set(get(bitcoinChainsData).map(x => x.id)));
   const solanaChainSet = computed<Set<string>>(() => new Set(get(solanaChainsData).map(x => x.id)));
+  const stacksChainSet = computed<Set<string>>(() => new Set(get(stacksChainsData).map(x => x.id)));
   const decodableChainSet = computed<Set<string>>(() => new Set(get(decodableTxChainsInfo).map(x => x.id)));
   const txEvmChainSet = computed<Set<string>>(() => new Set(get(txEvmChains).map(x => x.id)));
 
@@ -151,6 +163,8 @@ export const useSupportedChains = createSharedComposable((): UseSupportedChainsR
   const isBtcChains = (chain: string): boolean => get(btcChainSet).has(chain);
 
   const isSolanaChains = (chain: string): boolean => get(solanaChainSet).has(chain);
+
+  const isStacksChains = (chain: string): boolean => get(stacksChainSet).has(chain);
 
   const isDecodableChains = (chain: string): boolean => get(decodableChainSet).has(chain);
 
@@ -310,8 +324,10 @@ export const useSupportedChains = createSharedComposable((): UseSupportedChainsR
     isEvmCompatible,
     isEvmLikeChains,
     isSolanaChains,
+    isStacksChains,
     matchChain,
     solanaChainsData,
+    stacksChainsData,
     supportedChains,
     supportsTransactions,
     txChainsToLocation,

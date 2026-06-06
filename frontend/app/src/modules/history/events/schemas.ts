@@ -112,6 +112,16 @@ const SolanaSwapEventSchema = CommonHistoryEvent.extend({
 
 export type SolanaSwapEvent = z.infer<typeof SolanaSwapEventSchema>;
 
+const StacksEventSchema = CommonHistoryEvent.extend({
+  address: z.string().nullable(),
+  counterparty: z.string().nullable(),
+  entryType: z.literal(HistoryEventEntryType.STACKS_EVENT),
+  extraData: z.unknown().nullish(),
+  txRef: z.string(),
+});
+
+export type StacksEvent = z.infer<typeof StacksEventSchema>;
+
 export const HistoryEvent = z.union([
   EvmHistoryEvent,
   AssetMovementEvent,
@@ -123,6 +133,7 @@ export const HistoryEvent = z.union([
   EvmSwapEventSchema,
   SolanaEventSchema,
   SolanaSwapEventSchema,
+  StacksEventSchema,
 ]);
 
 export type GroupEditableHistoryEvents = AssetMovementEvent | SwapEvent | EvmSwapEvent | SolanaSwapEvent;
@@ -134,7 +145,7 @@ export interface FeeEntry {
 
 export type SwapEventUserNotes = [string, string, ...string[]];
 
-export type StandaloneEditableEvents = EvmHistoryEvent | OnlineHistoryEvent | EthWithdrawalEvent | EthBlockEvent | EthDepositEvent | SolanaEvent;
+export type StandaloneEditableEvents = EvmHistoryEvent | OnlineHistoryEvent | EthWithdrawalEvent | EthBlockEvent | EthDepositEvent | SolanaEvent | StacksEvent;
 
 export type HistoryEvent = StandaloneEditableEvents | GroupEditableHistoryEvents;
 
@@ -197,6 +208,15 @@ type EditSolanaEventPayload = Omit<
 };
 
 export type NewSolanaEventPayload = Omit<EditSolanaEventPayload, 'identifier'>;
+
+type EditStacksEventPayload = Omit<
+  StacksEvent,
+  'ignoredInAccounting' | 'customized' | 'groupIdentifier' | 'location'
+> & {
+  groupIdentifier: string | null;
+};
+
+export type NewStacksEventPayload = Omit<EditStacksEventPayload, 'identifier'>;
 
 type EditOnlineHistoryEventPayload = Omit<OnlineHistoryEvent, 'ignoredInAccounting' | 'states'>;
 
@@ -287,7 +307,8 @@ export type EditHistoryEventPayload =
   | EditEthDepositEventPayload
   | EditEthWithdrawalEventPayload
   | EditAssetMovementEventPayload
-  | EditSolanaEventPayload;
+  | EditSolanaEventPayload
+  | EditStacksEventPayload;
 
 export type NewHistoryEventPayload =
   | NewEvmHistoryEventPayload
@@ -296,7 +317,8 @@ export type NewHistoryEventPayload =
   | NewEthDepositEventPayload
   | NewEthWithdrawalEventPayload
   | NewAssetMovementEventPayload
-  | NewSolanaEventPayload;
+  | NewSolanaEventPayload
+  | NewStacksEventPayload;
 
 export type AddHistoryEventPayload = NewHistoryEventPayload | AddSwapEventPayload | AddEvmSwapEventPayload | AddSolanaSwapEventPayload;
 

@@ -1,4 +1,4 @@
-import { BigNumber, isEvmIdentifier, transformCase } from '@rotki/common';
+import { BigNumber, isEvmIdentifier, isStacksTokenIdentifier, transformCase } from '@rotki/common';
 
 function isObject(data: unknown): data is Record<string, unknown> {
   return (
@@ -35,7 +35,7 @@ function convertKeys(data: unknown, options: ConvertKeysOptions): unknown {
   const converted: Record<string, unknown> = {};
   Object.keys(data).forEach((key) => {
     const datum = data[key];
-    const skipConversion = skipRoot || isEvmIdentifier(key) || /^[A-Z]/.test(key);
+    const skipConversion = skipRoot || isEvmIdentifier(key) || isStacksTokenIdentifier(key) || /^[A-Z]/.test(key);
     const updatedKey = skipConversion ? key : getUpdatedKey(key, camelCase);
     const shouldSkipNested = skipKeys.includes(key);
 

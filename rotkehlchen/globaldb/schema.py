@@ -81,6 +81,8 @@ INSERT OR IGNORE INTO asset_types(type, seq) VALUES ('Y', 25);
 INSERT OR IGNORE INTO asset_types(type, seq) VALUES ('Z', 26);
 /* CUSTOM ASSET */
 INSERT OR IGNORE INTO asset_types(type, seq) VALUES ('[', 27);
+/* STACKS TOKEN */
+INSERT OR IGNORE INTO asset_types(type, seq) VALUES ('\\', 28);
 """
 
 # Custom enum table for token kinds
@@ -99,6 +101,10 @@ INSERT OR IGNORE INTO token_kinds(token_kind, seq) VALUES ('C', 3);
 INSERT OR IGNORE INTO token_kinds(token_kind, seq) VALUES ('D', 4);
 /* SPL NFT */
 INSERT OR IGNORE INTO token_kinds(token_kind, seq) VALUES ('E', 5);
+/* SIP10 FUNGIBLE (Stacks) */
+INSERT OR IGNORE INTO token_kinds(token_kind, seq) VALUES ('F', 6);
+/* SIP10 NFT (Stacks) */
+INSERT OR IGNORE INTO token_kinds(token_kind, seq) VALUES ('G', 7);
 """
 
 # The common_asset_details contains information common for all the crypto-assets
@@ -163,6 +169,16 @@ CREATE TABLE IF NOT EXISTS solana_tokens (
     identifier TEXT PRIMARY KEY NOT NULL COLLATE NOCASE,
     token_kind CHAR(1) NOT NULL DEFAULT('D') REFERENCES token_kinds(token_kind),
     address VARCHAR[44] NOT NULL,
+    decimals INTEGER,
+    protocol TEXT,
+    FOREIGN KEY(identifier) REFERENCES assets(identifier) ON UPDATE CASCADE ON DELETE CASCADE
+);"""
+
+DB_CREATE_STACKS_TOKENS = """
+CREATE TABLE IF NOT EXISTS stacks_tokens (
+    identifier TEXT PRIMARY KEY NOT NULL COLLATE NOCASE,
+    token_kind CHAR(1) NOT NULL DEFAULT('F') REFERENCES token_kinds(token_kind),
+    contract_id TEXT NOT NULL,
     decimals INTEGER,
     protocol TEXT,
     FOREIGN KEY(identifier) REFERENCES assets(identifier) ON UPDATE CASCADE ON DELETE CASCADE
@@ -361,6 +377,7 @@ CREATE INDEX IF NOT EXISTS idx_underlying_tokens_parent_entry ON underlying_toke
 CREATE INDEX IF NOT EXISTS idx_binance_pairs_identifier ON binance_pairs (base_asset, quote_asset);
 CREATE INDEX IF NOT EXISTS idx_multiasset_mappings_identifier ON multiasset_mappings (asset);
 CREATE INDEX IF NOT EXISTS idx_solana_tokens_identifier ON solana_tokens (identifier, protocol);
+CREATE INDEX IF NOT EXISTS idx_stacks_tokens_identifier ON stacks_tokens (identifier, protocol);
 """  # noqa: E501
 
 DB_SCRIPT_CREATE_TABLES = f"""
@@ -389,6 +406,7 @@ BEGIN TRANSACTION;
 {DB_CREATE_LOCATION_ASSET_MAPPINGS}
 {DB_CREATE_COUNTERPARTY_ASSET_MAPPINGS}
 {DB_CREATE_SOLANA_TOKENS}
+{DB_CREATE_STACKS_TOKENS}
 {DB_CREATE_INDEXES}
 COMMIT;
 PRAGMA foreign_keys=on;

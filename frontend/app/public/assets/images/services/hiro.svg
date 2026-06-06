@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <rect width="32" height="32" rx="4" fill="#FF5500"/>
+  <g fill="#1A1A1A" font-family="system-ui, -apple-system, sans-serif" font-weight="600" transform="translate(32, 0) scale(-1, 1)">
+    <path d="M7 10l4 12h-1.5L5.5 10H7z"/>
+    <path d="M12 15h8v1.5h-8z"/>
+    <path d="M21 10h1.5l4 12H25l-4-12z"/>
+  </g>
+</svg>

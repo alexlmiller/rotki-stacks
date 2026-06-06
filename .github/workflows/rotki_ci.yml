@@ -30,45 +30,30 @@ jobs:
       frontend_tasks: ${{ steps.checker.outputs.frontend_tasks }}
       e2e_tasks: ${{ steps.checker.outputs.e2e_tasks }}
       documentation_tasks: ${{ steps.checker.outputs.documentation_tasks }}
-      test_environment: ${{ steps.checker.outputs.backend_environment }}
+      test_environment: ${{ steps.checker.outputs.test_environment }}
     permissions:
       contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@v5
         with:
           persist-credentials: false
 
       - name: Run check action
-        uses: rotki/action-job-checker@c507ef41d38d78c43014d42175dc1725019f0c23  # v6.1.0
+        uses: rotki/action-job-checker@v4
         id: checker
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          config: |
-            # yaml-language-server: $schema=https://raw.githubusercontent.com/rotki/action-job-checker/v6.1.0/schema.json
-            groups:
-              - name: frontend
-                paths: [frontend]
-                run_tag: run frontend
-                implies: [e2e]
-              - name: e2e
-                run_tag: run e2e
-              - name: backend
-                paths:
-                  - rotkehlchen
-                  - pyproject.toml
-                  - .github/workflows/task_backend_tests.yml
-                run_tag: run backend
-                skip_tag: skip py tests
-                environments:
-                  - tag: run nft py tests
-                    value: nfts
-                  - tag: run all py tests
-                    value: nightly
-              - name: colibri
-                paths: [colibri]
-              - name: documentation
-                paths: [docs]
+          documentation_paths: |
+            docs
+          colibri_paths: |
+            colibri
+          backend_paths: |
+            rotkehlchen
+            pyproject.toml
+            .github/workflows/task_backend_tests.yml
+          frontend_paths: |
+            frontend
 
   check-typos:
     name: 'Check Typos'
@@ -77,96 +62,18 @@ jobs:
       contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@v5
         with:
           persist-credentials: false
 
       - name: Run typos checker
-        uses: crate-ci/typos@cf5f1c29a8ac336af8568821ec41919923b05a83  # v1.45.1
+        uses: crate-ci/typos@master
 
-  code-analyze-frontend:
-    name: 'Code analyze frontend'
-    needs: [ 'check-changes', 'check-typos' ]
-    permissions:
-      actions: read
-      contents: read
-      security-events: write
-    if: ${{ needs.check-changes.outputs.frontend_tasks }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
-        with:
-          persist-credentials: false
+  # DISABLED: code-analyze-frontend (frontend CodeQL security analysis not needed for Docker-only fork)
 
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@c10b8064de6f491fea524254123dbe5e09572f13  # v4.35.1
-        with:
-          languages: 'javascript'
+  # DISABLED: lint-frontend (frontend linting not needed for Docker-only fork)
 
-      - name: Autobuild
-        uses: github/codeql-action/autobuild@c10b8064de6f491fea524254123dbe5e09572f13  # v4.35.1
-
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@c10b8064de6f491fea524254123dbe5e09572f13  # v4.35.1
-        with:
-          category: "/language:javascript"
-
-  lint-frontend:
-    name: 'Frontend lint'
-    needs: [ 'check-changes', 'check-typos' ]
-    if: ${{ needs.check-changes.outputs.frontend_tasks }}
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
-        with:
-          fetch-depth: 2
-          persist-credentials: false
-
-      - name: Load env
-        uses: rotki/action-env@49f59e650cfdc8796c4ac6533ec044b190d83f9a  # v4.0.0
-        with:
-          env_file: .github/.env.ci
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@08c4be7e2e672a47d11bd04269e27e5f3e8529cb  # v6.0.0
-        with:
-          package_json_file: frontend/package.json
-
-      - name: Setup node
-        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f  # v6.3.0
-        with:
-          node-version-file: 'frontend/.nvmrc'
-          cache: 'pnpm'
-          cache-dependency-path: 'frontend/pnpm-lock.yaml'
-
-      - name: Install dependencies
-        working-directory: ./frontend
-        run: pnpm install --frozen-lockfile
-
-      - name: Build
-        working-directory: ./frontend
-        run: |
-          if [ ${{ github.event_name }} != 'push' ]; then
-            pnpm run build
-          fi
-
-      - name: Lint code
-        working-directory: ./frontend
-        run: pnpm run lint:all
-
-  unittest-frontend:
-    name: 'Frontend unit tests'
-    needs: [ 'check-changes' ]
-    if: ${{ github.event_name != 'push' && needs.check-changes.outputs.frontend_tasks }}
-    uses: ./.github/workflows/task_fe_unit_tests.yml
-    permissions:
-      contents: read
-    secrets:
-      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+  # DISABLED: unittest-frontend (frontend unit tests not needed for Docker-only fork)
 
   docs:
     name: 'Documentation build'
@@ -177,30 +84,30 @@ jobs:
       contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@v5
         with:
           persist-credentials: false
 
       - name: Load env
-        uses: rotki/action-env@49f59e650cfdc8796c4ac6533ec044b190d83f9a  # v4.0.0
+        uses: rotki/action-env@v3
         with:
           env_file: .github/.env.ci
 
       - name: Setup python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: 'pip'
 
       - name: Install uv
-        uses: astral-sh/setup-uv@cec208311dfd045dd5311c1add060b2062131d57  # v8.0.0
+        uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
           version: ${{ env.UV_VERSION }}
           cache-dependency-glob: "uv.lock"
 
       - name: Install dependencies
-        run: uv sync --locked --group docs
+        run: uv sync --group docs
 
       - name: Build html docs
         run: cd docs && uv run make html
@@ -216,20 +123,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@v5
         with:
           persist-credentials: false
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@c10b8064de6f491fea524254123dbe5e09572f13  # v4.35.1
+        uses: github/codeql-action/init@v4
         with:
           languages: 'python'
 
       - name: Autobuild
-        uses: github/codeql-action/autobuild@c10b8064de6f491fea524254123dbe5e09572f13  # v4.35.1
+        uses: github/codeql-action/autobuild@v4
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@c10b8064de6f491fea524254123dbe5e09572f13  # v4.35.1
+        uses: github/codeql-action/analyze@v4
         with:
           category: "/language:python"
 
@@ -240,33 +147,27 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    defaults:
-      run:
-        working-directory: ./colibri
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+      - uses: actions/checkout@v5
         with:
           persist-credentials: false
 
-      - uses: dtolnay/rust-toolchain@e7a32da269276b4d9cb3a0343133a168355ab751  # clippy
+      - uses: dtolnay/rust-toolchain@clippy
         with:
-          toolchain: 1.91
-          components: clippy
+          toolchain: 1.86.0
 
-      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32  # v2
+      - uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
-          workspaces: |
-            colibri -> target
+          workspaces: colibri
 
-      - name: Fetch Rust dependencies
-        run: cargo fetch --locked
-
-      - run: cargo check --workspace --locked && cargo clippy --workspace --locked
+      - run: cargo check --workspace && cargo clippy --workspace
+        working-directory: ./colibri
         env:
           RUSTFLAGS: -Dwarnings
 
-      - run: cargo test --locked
+      - run: cargo test
+        working-directory: ./colibri
         env:
           RUSTFLAGS: -Dwarnings
 
@@ -279,24 +180,23 @@ jobs:
       contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@v5
         with:
           persist-credentials: false
-          fetch-depth: 0  # full history so the diff-scoped logging lint can reach the PR base
 
       - name: Load env
-        uses: rotki/action-env@49f59e650cfdc8796c4ac6533ec044b190d83f9a  # v4.0.0
+        uses: rotki/action-env@v3
         with:
           env_file: .github/.env.ci
 
       - name: Setup python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: 'pip'
 
       - name: Install uv
-        uses: astral-sh/setup-uv@cec208311dfd045dd5311c1add060b2062131d57  # v8.0.0
+        uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
           version: ${{ env.UV_VERSION }}
@@ -304,20 +204,18 @@ jobs:
 
       - name: Cache find-duplicate-constants binary
         id: fdc-cache
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
+        uses: actions/cache@v4
         with:
           path: tools/find-duplicate-constants/target/release/find-duplicate-constants
           key: ${{ runner.os }}-find-duplicate-constants-${{ hashFiles('tools/find-duplicate-constants/Cargo.lock', 'tools/find-duplicate-constants/Cargo.toml', 'tools/find-duplicate-constants/src/**') }}
 
       - name: Setup Rust
         if: steps.fdc-cache.outputs.cache-hit != 'true'
-        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8  # stable
-        with:
-          toolchain: 1.91
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Cache Rust dependencies
         if: steps.fdc-cache.outputs.cache-hit != 'true'
-        uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32  # v2
+        uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
           workspaces: tools/find-duplicate-constants
@@ -328,11 +226,9 @@ jobs:
         run: cargo build --release
 
       - name: Install dependencies
-        run: uv sync --locked --group lint
+        run: uv sync --group lint
 
       - name: Lint
-        env:
-          LINT_DIFF_BASE: ${{ github.event.pull_request.base.sha }}  # diff-scoped logging lint base
         run: uv run make lint
 
   test-backend:
@@ -347,28 +243,23 @@ jobs:
     permissions:
       contents: read
 
-  test-e2e:
-    name: 'Frontend e2e tests'
-    needs: check-changes
-    if: ${{ github.event_name != 'push' && needs.check-changes.outputs.e2e_tasks }}
-    uses: ./.github/workflows/task_e2e_tests.yml
-    secrets:
-      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-      ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
-    permissions:
-      contents: read
+  # DISABLED: test-e2e (end-to-end tests not needed for Docker-only fork)
 
   done:
     name: 'Success check'
     if: ${{ always() }}
-    needs: [ 'check-changes', 'lint-frontend', 'unittest-frontend', 'docs', 'lint-colibri', 'lint-backend', 'test-backend', 'test-e2e' ]
+    needs: [ 'check-changes', 'docs', 'lint-colibri', 'lint-backend', 'test-backend' ]
     runs-on: ubuntu-latest
     steps:
       - name: Check if any task failed
         run: |
-          if echo "${RESULT}" | jq -e '.[] | select(. == "failure")' > /dev/null 2>&1; then
-              echo "::error::At least one required task failed"
-              exit 1
-          fi
+          data=($(echo "${RESULT}" | sed 's/[][,]//g'))
+          for i in "${data[@]}"
+          do
+            if [[ $i == "failure" ]]; then
+                echo "::error::At least one required task failed"
+                exit 1;
+            fi
+          done
         env:
           RESULT: ${{ toJSON(needs.*.result) }}

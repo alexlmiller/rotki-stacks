@@ -2,7 +2,7 @@ import type { Ref } from 'vue';
 import type { MatchedKeyword, SearchMatcher } from '@/modules/core/table/filtering';
 import type { FilterSchema } from '@/modules/core/table/pagination-filter-types';
 import { z } from 'zod/v4';
-import { SOLANA_CHAIN } from '@/modules/assets/types';
+import { SOLANA_CHAIN, STACKS_CHAIN } from '@/modules/assets/types';
 import { arrayify } from '@/modules/core/common/data/array';
 import { useSupportedChains } from '@/modules/core/common/use-supported-chains';
 
@@ -80,7 +80,7 @@ export function useAssetFilter(assetTypes: Ref<string[]>): FilterSchema<Filters,
         key: AssetFilterKeys.CHAIN,
         keyValue: AssetFilterValueKeys.CHAIN,
         string: true,
-        suggestions: (): string[] => [...get(allEvmChains).map(x => x.name), SOLANA_CHAIN],
+        suggestions: (): string[] => [...get(allEvmChains).map(x => x.name), SOLANA_CHAIN, STACKS_CHAIN],
         validate: (chain: string): boolean => !!chain,
       }] satisfies Matcher[]
       : []),

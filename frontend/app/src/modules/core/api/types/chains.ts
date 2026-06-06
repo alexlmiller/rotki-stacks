@@ -6,6 +6,7 @@ export const ChainType = {
   EVM: 'evm',
   EVMLIKE: 'evmlike',
   SOLANA: 'solana',
+  STACKS: 'stacks',
   SUBSTRATE: 'substrate',
 } as const;
 

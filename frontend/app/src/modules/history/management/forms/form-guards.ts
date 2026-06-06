@@ -5,9 +5,10 @@ import type {
   HistoryEvent,
   SolanaEvent,
   SolanaSwapEvent,
+  StacksEvent,
 } from '@/modules/history/events/schemas';
 import { HistoryEventEntryType } from '@rotki/common';
-import { isEvmEvent, isEvmSwapEvent, isSolanaEvent, isSolanaSwapEvent } from '@/modules/history/event-utils';
+import { isEvmEvent, isEvmSwapEvent, isSolanaEvent, isSolanaSwapEvent, isStacksEvent } from '@/modules/history/event-utils';
 
 export function isGroupEditableHistoryEvent(event: HistoryEvent): event is GroupEditableHistoryEvents {
   return event.entryType === HistoryEventEntryType.ASSET_MOVEMENT_EVENT
@@ -32,6 +33,14 @@ export function isSolanaTypeEvent(type: HistoryEventEntryType): boolean {
   return Array.prototype.includes.call(SOLANA_EVENTS, type);
 }
 
+export const STACKS_EVENTS = [
+  HistoryEventEntryType.STACKS_EVENT,
+] as const;
+
+export function isStacksTypeEvent(type: HistoryEventEntryType): boolean {
+  return Array.prototype.includes.call(STACKS_EVENTS, type);
+}
+
 const SWAP_EVENTS = [
   HistoryEventEntryType.SWAP_EVENT,
   HistoryEventEntryType.EVM_SWAP_EVENT,
@@ -42,10 +51,10 @@ export function isSwapTypeEvent(type: HistoryEventEntryType): boolean {
   return Array.prototype.includes.call(SWAP_EVENTS, type);
 }
 
-export type DecodableEventType = EvmHistoryEvent | EvmSwapEvent | SolanaEvent | SolanaSwapEvent;
+export type DecodableEventType = EvmHistoryEvent | EvmSwapEvent | SolanaEvent | SolanaSwapEvent | StacksEvent;
 
 export function isEventDecodable(event: HistoryEvent): DecodableEventType | undefined {
-  if (isEvmEvent(event) || isEvmSwapEvent(event) || isSolanaEvent(event) || isSolanaSwapEvent(event)) {
+  if (isEvmEvent(event) || isEvmSwapEvent(event) || isSolanaEvent(event) || isSolanaSwapEvent(event) || isStacksEvent(event)) {
     return event;
   }
   return undefined;

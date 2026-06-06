@@ -3,9 +3,11 @@ from rotkehlchen.serialization.deserialize import deserialize_evm_address
 from rotkehlchen.types import (
     EVM_TOKEN_KINDS_TYPE,
     SOLANA_TOKEN_KINDS_TYPE,
+    STACKS_TOKEN_KINDS_TYPE,
     ChainID,
     ChecksumEvmAddress,
     SolanaAddress,
+    StacksAddress,
     TokenKind,
 )
 
@@ -13,6 +15,7 @@ ETHEREUM_DIRECTIVE = '_ceth_'
 ETHEREUM_DIRECTIVE_LENGTH = len(ETHEREUM_DIRECTIVE)
 EVM_CHAIN_DIRECTIVE = 'eip155'
 SOLANA_CHAIN_DIRECTIVE = 'solana'
+STACKS_CHAIN_DIRECTIVE = 'stacks'
 
 
 def evm_address_to_identifier(
@@ -102,3 +105,42 @@ def solana_address_to_identifier(
     See: https://namespaces.chainagnostic.org/solana/caip19
     """
     return f'{SOLANA_CHAIN_DIRECTIVE}/{str(token_type)[4:]}:{address}'
+
+
+def stacks_contract_to_identifier(
+        contract_id: StacksAddress,
+        token_type: STACKS_TOKEN_KINDS_TYPE = TokenKind.SIP10_FUNGIBLE,
+) -> str:
+    """Converts a Stacks contract ID and token type into an identifier.
+
+    Uses 'stacks' prefix for consistency with other chains.
+
+    Args:
+        contract_id: The contract principal
+            (e.g., SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.sbtc-token)
+        token_type: The token kind (SIP10_FUNGIBLE or SIP10_NFT)
+
+    Returns:
+        Identifier in format 'stacks/sip10_fungible:<contract_id>'
+
+    Note:
+        The contract_id should NOT include the ::asset-name suffix that Hiro API returns.
+        Strip it before calling this function: contract_id.split('::')[0]
+    """
+    # Use .name to get 'SIP10_FUNGIBLE' (with underscore), not str() which gives 'sip10 fungible'
+    return f'{STACKS_CHAIN_DIRECTIVE}/{token_type.name.lower()}:{contract_id}'
+
+
+def identifier_to_stacks_contract(identifier: str) -> StacksAddress | None:
+    """Parse Stacks identifier and return the contract ID or None on error."""
+    if not identifier.startswith(f'{STACKS_CHAIN_DIRECTIVE}/'):
+        return None
+
+    try:
+        # Format: stacks/sip10_fungible:CONTRACT_ID
+        parts = identifier.split(':')
+        if len(parts) != 2:
+            return None
+        return StacksAddress(parts[1])
+    except (ValueError, IndexError):
+        return None

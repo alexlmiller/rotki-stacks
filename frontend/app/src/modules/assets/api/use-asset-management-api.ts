@@ -9,6 +9,8 @@ import {
   CustomAssets,
   SOLANA_CHAIN,
   SOLANA_TOKEN,
+  STACKS_CHAIN,
+  STACKS_TOKEN,
   SupportedAssets,
 } from '@/modules/assets/types';
 import { api } from '@/modules/core/api/rotki-api';
@@ -40,6 +42,10 @@ export function useAssetManagementApi(): UseAssetManagementApiReturn {
     if (transformedPayload.evmChain === SOLANA_CHAIN) {
       delete transformedPayload.evmChain;
       transformedPayload.assetType = SOLANA_TOKEN;
+    }
+    else if (transformedPayload.evmChain === STACKS_CHAIN) {
+      delete transformedPayload.evmChain;
+      transformedPayload.assetType = STACKS_TOKEN;
     }
 
     const response = await api.post<SupportedAssets>(

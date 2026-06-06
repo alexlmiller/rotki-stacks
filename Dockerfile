@@ -26,7 +26,6 @@ FROM ghcr.io/astral-sh/uv:python3.11-bookworm AS backend-build-stage
 
 ARG TARGETARCH
 ARG ROTKI_VERSION
-ENV PACKAGE_FALLBACK_VERSION=$ROTKI_VERSION
 ARG PYINSTALLER_VERSION=v6.15.0
 
 WORKDIR /app
@@ -36,7 +35,8 @@ RUN uv sync --locked --no-dev --no-install-project
 
 COPY . /app
 
-RUN sed "s/fallback_version.*/fallback_version = \"$PACKAGE_FALLBACK_VERSION\"/" -i pyproject.toml && \
+RUN VERSION_PEP440=$(echo "${ROTKI_VERSION}" | sed 's/-stacks/+stacks/') && \
+    sed "s/fallback_version.*/fallback_version = \"${VERSION_PEP440}\"/" -i pyproject.toml && \
     uv sync --locked --no-dev --no-install-project && \
     if [ "$TARGETARCH" != "amd64" ]; then \
       git clone https://github.com/pyinstaller/pyinstaller.git && \
@@ -44,7 +44,7 @@ RUN sed "s/fallback_version.*/fallback_version = \"$PACKAGE_FALLBACK_VERSION\"/"
       cd bootloader && ./waf all && cd .. && \
       uv pip install "pyinstaller @ ."; \
     else \
-      uv pip install pyinstaller==${PYINSTALLER_VERSION}; \
+      uv pip install pyinstaller==${PYINSTALLER_VERSION#v}; \
     fi && \
     cd /app && \
     uv pip install -e . && \

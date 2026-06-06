@@ -269,6 +269,7 @@ def is_valid_db_blockchain_account(
         SupportedBlockchain.BITCOIN,
         SupportedBlockchain.BITCOIN_CASH,
         SupportedBlockchain.SOLANA,
+        SupportedBlockchain.STACKS,
     ):
         return True
 
@@ -340,6 +341,7 @@ DBTupleType = Literal[
     'solana_account_key',
     'solana_instruction',
     'solana_instruction_account',
+    'stacks_transaction',
 ]
 
 
@@ -367,6 +369,8 @@ def db_tuple_to_str(
         return f'Solana account key at index {data[1]} for transaction {data[0]}'
     if tuple_type == 'solana_instruction_account':
         return f'Solana instruction account at order {data[2]} for instruction {data[1]}'
+    if tuple_type == 'stacks_transaction':
+        return f'Stacks transaction with tx_id {data[0]}'
 
     # else can only be evm transaction
     assert tuple_type == 'evm_transaction', 'only DBTupleType possible here is evm_transaction'

@@ -19,6 +19,14 @@ const SMOLDAPP_BASE_URL: &str =
 // Selector for tokenURI(uint256) = keccak256("tokenURI(uint256)")[0:4]
 const TOKENURI_SELECTOR: &str = "c87b56dd";
 
+/// Hiro Token Metadata API base URL for fetching Stacks token metadata including images
+const HIRO_METADATA_API_URL: &str = "https://api.hiro.so/metadata/v1/ft";
+
+/// Fallback icon for Stacks tokens without metadata images
+/// Uses the STX icon as fallback to indicate it's a Stacks token
+const STACKS_FALLBACK_ICON_URL: &str =
+    "https://raw.githubusercontent.com/rotki/data/develop/assets/icons/stx.svg";
+
 pub enum FileTypeError {
     UnsupportedFileType,
 }
@@ -77,6 +85,136 @@ async fn query_image_from_cdn(url: &str) -> Option<Bytes> {
     smoldapp_image_query(&Client::new(), url, "")
         .await
         .map(|(bytes, _)| bytes)
+}
+
+/// Determine file extension from content-type header or URL
+fn determine_extension_from_response(
+    content_type: Option<&str>,
+    url: &str,
+) -> &'static str {
+    // First try content-type header
+    if let Some(ct) = content_type {
+        if ct.contains("svg") {
+            return "svg";
+        } else if ct.contains("png") {
+            return "png";
+        } else if ct.contains("jpeg") || ct.contains("jpg") {
+            return "jpg";
+        } else if ct.contains("gif") {
+            return "gif";
+        } else if ct.contains("webp") {
+            return "webp";
+        }
+    }
+    // Fall back to URL extension
+    if url.ends_with(".svg") {
+        "svg"
+    } else if url.ends_with(".jpg") || url.ends_with(".jpeg") {
+        "jpg"
+    } else if url.ends_with(".gif") {
+        "gif"
+    } else if url.ends_with(".webp") {
+        "webp"
+    } else {
+        "png" // Default to PNG
+    }
+}
+
+/// Query Hiro Token Metadata API for Stacks token icon
+/// Returns the icon bytes and file extension if found
+async fn query_hiro_token_icon(contract_principal: &str) -> Option<(Bytes, &'static str)> {
+    let client = Client::new();
+    let url = format!("{}/{}", HIRO_METADATA_API_URL, contract_principal);
+
+    debug!("Querying Hiro metadata API for {}", contract_principal);
+
+    // Fetch metadata JSON
+    let resp = match client
+        .get(&url)
+        .timeout(Duration::from_secs(10))
+        .send()
+        .await
+    {
+        Ok(r) => r,
+        Err(e) => {
+            error!("Failed to query Hiro API for {}: {}", contract_principal, e);
+            return None;
+        }
+    };
+
+    if !resp.status().is_success() {
+        debug!(
+            "Hiro API returned non-success status {} for {}",
+            resp.status(),
+            contract_principal
+        );
+        return None;
+    }
+
+    let json: serde_json::Value = match resp.json().await {
+        Ok(j) => j,
+        Err(e) => {
+            error!(
+                "Failed to parse Hiro API response for {}: {}",
+                contract_principal, e
+            );
+            return None;
+        }
+    };
+
+    // Priority: cached_image > cached_thumbnail_image > image_canonical_uri > image_uri
+    let image_url = json
+        .get("cached_image")
+        .or_else(|| json.get("cached_thumbnail_image"))
+        .or_else(|| json.get("image_canonical_uri"))
+        .or_else(|| json.get("image_uri"))
+        .and_then(|v| v.as_str())
+        .filter(|s| !s.is_empty())?;
+
+    debug!("Found image URL for {}: {}", contract_principal, image_url);
+
+    // Fetch the actual image
+    let img_resp = match client
+        .get(image_url)
+        .timeout(Duration::from_secs(10))
+        .send()
+        .await
+    {
+        Ok(r) => r,
+        Err(e) => {
+            error!(
+                "Failed to fetch image from {} for {}: {}",
+                image_url, contract_principal, e
+            );
+            return None;
+        }
+    };
+
+    if !img_resp.status().is_success() {
+        error!(
+            "Image fetch returned non-success status {} for {}",
+            img_resp.status(),
+            image_url
+        );
+        return None;
+    }
+
+    // Determine extension from content-type or URL
+    let content_type = img_resp
+        .headers()
+        .get("content-type")
+        .and_then(|h| h.to_str().ok());
+    let extension = determine_extension_from_response(content_type, image_url);
+
+    let bytes = match img_resp.bytes().await {
+        Ok(b) => b,
+        Err(e) => {
+            error!("Failed to read image bytes for {}: {}", contract_principal, e);
+            return None;
+        }
+    };
+
+    Some((bytes, extension))
 }
 
 async fn query_token_icon_and_extension(
@@ -467,6 +605,7 @@ pub async fn query_icon_remotely(
         "TIA" => Some(("https://raw.githubusercontent.com/rotki/data/develop/assets/icons/tia.png", "png")),
         "DOT" => Some(("https://raw.githubusercontent.com/rotki/data/develop/assets/icons/dot.png", "png")),
         "SOL" => Some(("https://raw.githubusercontent.com/SmolDapp/tokenAssets/main/tokens/1151111081099710/So11111111111111111111111111111111111111112/logo.svg", "svg")),
+        "STX" => Some(("https://raw.githubusercontent.com/rotki/data/develop/assets/icons/stx.svg", "svg")),
         "eip155:1/erc20:0x455e53CBB86018Ac2B8092FdCd39d8444aFFC3F6" => Some(("https://raw.githubusercontent.com/SmolDapp/tokenAssets/refs/heads/main/chains/1101/logo.svg", "svg")),  // polygon
         _ => None
     } {
@@ -512,15 +651,33 @@ pub async fn query_icon_remotely(
             }
         }
 
-        // For all token types, try SmolDapp
-        if let Some((icon_bytes, extension)) = query_token_icon_and_extension(
-            asset_info.chain_id,
-            asset_info.contract_address,
-            SMOLDAPP_BASE_URL,
-        )
-        .await
-        {
-            return write_icon_to_file(&path, extension, &icon_bytes).await;
+        // Handle Stacks tokens via Hiro API
+        if let AssetAddress::Stacks(contract_principal) = &asset_info.contract_address {
+            debug!("Detected Stacks token: {}", contract_principal);
+            // Try Hiro Token Metadata API
+            if let Some((icon_bytes, extension)) = query_hiro_token_icon(contract_principal).await {
+                return write_icon_to_file(&path, extension, &icon_bytes).await;
+            }
+            // Fall back to grayed Stacks icon for tokens without metadata images
+            debug!(
+                "No Hiro metadata image for {}, using fallback",
+                contract_principal
+            );
+            if let Some(icon_bytes) = query_image_from_cdn(STACKS_FALLBACK_ICON_URL).await {
+                return write_icon_to_file(&path, "png", &icon_bytes).await;
+            }
+            // If fallback also fails, continue to CoinGecko
+        } else {
+            // For EVM/Solana token types, try SmolDapp
+            if let Some((icon_bytes, extension)) = query_token_icon_and_extension(
+                asset_info.chain_id,
+                asset_info.contract_address.clone(),
+                SMOLDAPP_BASE_URL,
+            )
+            .await
+            {
+                return write_icon_to_file(&path, extension, &icon_bytes).await;
+            }
         }
     }
 

@@ -1,6 +1,6 @@
 import type { ShallowRef } from 'vue';
 import type { AssetMap } from '@/modules/assets/types';
-import { type AssetCollection, type AssetInfo, transformCase } from '@rotki/common';
+import { type AssetCollection, type AssetInfo, isStacksTokenIdentifier, transformCase } from '@rotki/common';
 import { useAssetInfoApi } from '@/modules/assets/api/use-asset-info-api';
 import { getErrorMessage } from '@/modules/core/common/logging/error-handling';
 import { logger } from '@/modules/core/common/logging/logging';
@@ -58,7 +58,9 @@ export const useAssetInfoCache = createSharedComposable((): UseAssetInfoCacheRet
         }
 
         for (const key of keys) {
-          const item = assets[transformCase(key, true)];
+          // Don't transform Stacks identifiers - they contain underscores that must be preserved
+          const lookupKey = isStacksTokenIdentifier(key) ? key : transformCase(key, true);
+          const item = assets[lookupKey];
           yield { item, key };
         }
       };

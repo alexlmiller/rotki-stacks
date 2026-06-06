@@ -1,4 +1,5 @@
 /// <reference lib="dom" />
+/* eslint-disable max-lines -- This file contains validation functions for all chains */
 
 /**
  *
@@ -341,7 +342,7 @@ export function isValidSolanaAddress(address?: string): boolean {
 }
 
 export function isValidAddress(address?: string): boolean {
-  return isValidEthAddress(address) || isValidBtcAddress(address) || isValidBchAddress(address) || isValidSolanaAddress(address);
+  return isValidEthAddress(address) || isValidBtcAddress(address) || isValidBchAddress(address) || isValidSolanaAddress(address) || isValidStacksAddress(address);
 }
 
 export function isValidEvmTxHash(address?: string): boolean {
@@ -373,8 +374,49 @@ export function isValidSolanaSignature(signature?: string): boolean {
   }
 }
 
+/**
+ * Validates a Stacks blockchain address.
+ * Stacks addresses use c32check encoding:
+ * - Mainnet: Start with 'SP' (standard) or 'SM' (multisig)
+ * - Testnet: Start with 'ST' or 'SN'
+ * - Length is typically 39-41 characters
+ */
+export function isValidStacksAddress(address?: string): boolean {
+  if (!address || address.length < 39 || address.length > 41)
+    return false;
+
+  // Check valid prefix for mainnet (SP, SM) or testnet (ST, SN)
+  const validPrefixes = ['SP', 'SM', 'ST', 'SN'];
+  const prefix = address.slice(0, 2);
+  if (!validPrefixes.includes(prefix))
+    return false;
+
+  // c32check alphabet (no O, I, L - similar to base58 but different)
+  const c32Alphabet = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+  const addressBody = address.slice(2);
+
+  // Check all characters are valid c32 characters (case insensitive)
+  for (const char of addressBody.toUpperCase()) {
+    if (!c32Alphabet.includes(char))
+      return false;
+  }
+
+  return true;
+}
+
+/**
+ * Validates a Stacks transaction ID.
+ * Stacks transaction IDs are 0x-prefixed 64 hex characters (32 bytes).
+ */
+export function isValidStacksTxId(txId?: string): boolean {
+  if (!txId)
+    return false;
+
+  return /^0x[\dA-Fa-f]{64}$/.test(txId);
+}
+
 export function isValidTxHashOrSignature(txHash?: string): boolean {
-  return isValidEvmTxHash(txHash) || isValidBtcTxHash(txHash) || isValidSolanaSignature(txHash);
+  return isValidEvmTxHash(txHash) || isValidBtcTxHash(txHash) || isValidSolanaSignature(txHash) || isValidStacksTxId(txHash);
 }
 
 export function consistOfNumbers(text?: string): boolean {

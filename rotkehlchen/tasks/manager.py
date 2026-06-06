@@ -30,9 +30,11 @@ from rotkehlchen.db.filtering import (
     EvmTransactionsFilterQuery,
     EvmTransactionsNotDecodedFilterQuery,
     SolanaTransactionsNotDecodedFilterQuery,
+    StacksTransactionsNotDecodedFilterQuery,
 )
 from rotkehlchen.db.settings import CachedSettings
 from rotkehlchen.db.solanatx import DBSolanaTx
+from rotkehlchen.db.stackstx import DBStacksTx
 from rotkehlchen.db.utils import table_exists
 from rotkehlchen.errors.api import PremiumAuthenticationError, PremiumPermissionError
 from rotkehlchen.errors.asset import UnknownAsset, WrongAssetType
@@ -448,6 +450,10 @@ class TaskManager:
             if blockchain == SupportedBlockchain.SOLANA:
                 number_of_tx_to_decode = DBSolanaTx(self.database).count_hashes_not_decoded(
                     filter_query=SolanaTransactionsNotDecodedFilterQuery.make(),
+                )
+            elif blockchain == SupportedBlockchain.STACKS:
+                number_of_tx_to_decode = DBStacksTx(self.database).count_hashes_not_decoded(
+                    filter_query=StacksTransactionsNotDecodedFilterQuery.make(),
                 )
             else:
                 number_of_tx_to_decode = DBEvmTx(self.database).count_hashes_not_decoded(

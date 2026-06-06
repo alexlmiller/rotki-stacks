@@ -115,6 +115,45 @@ class IconManager:
         self.custom_icons_dir.mkdir(parents=True, exist_ok=True)
         self.failed_asset_ids: LRUSetCache[str] = LRUSetCache(maxsize=256)
         self.greenlet_manager = greenlet_manager
+        self._deploy_packaged_icons()
+
+    def _deploy_packaged_icons(self) -> None:
+        """
+        Deploy packaged icons from rotkehlchen/data/icons/ to user data directory.
+
+        This ensures that icons included in the rotki package (like STX) are available
+        without requiring remote fetches. Only deploys if the target file doesn't exist,
+        respecting user customization.
+
+        Follows the same pattern as GlobalDB initialization.
+        """
+        packaged_icons_dir = Path(__file__).parent / 'data' / 'icons'
+        if not packaged_icons_dir.exists():
+            log.warning(f'Packaged icons directory not found at {packaged_icons_dir}')
+            return
+
+        deployed_count = 0
+        for icon_path in packaged_icons_dir.iterdir():
+            if not icon_path.is_file():
+                continue
+
+            # Convert filename: stx.svg -> STX_small.svg
+            icon_name = icon_path.stem.upper()  # stx -> STX
+            icon_ext = icon_path.suffix  # .svg
+            target_filename = f'{icon_name}_small{icon_ext}'
+            target_path = self.icons_dir / target_filename
+
+            # Only deploy if doesn't exist (don't overwrite user customization)
+            if not target_path.exists():
+                try:
+                    shutil.copy2(icon_path, target_path)
+                    deployed_count += 1
+                    log.debug(f'Deployed packaged icon: {icon_name} -> {target_path}')
+                except (OSError, IOError) as e:
+                    log.warning(f'Failed to deploy packaged icon {icon_name}: {e}')
+
+        if deployed_count > 0:
+            log.info(f'Deployed {deployed_count} packaged icons to {self.icons_dir}')
 
     def iconfile_path(self, asset: AssetWithNameAndType) -> Path:
         return self.icons_dir / f'{urllib.parse.quote_plus(asset.identifier)}_small.png'

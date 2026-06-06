@@ -23,6 +23,7 @@ import { useSessionSettings } from '@/modules/session/use-session-settings';
 import { useSettingsApi } from '@/modules/settings/api/use-settings-api';
 import { migrateSettingsIfNeeded } from '@/modules/settings/types/frontend-settings-migrations';
 import { type SettingsUpdate, UserAccount, UserSettingsModel } from '@/modules/settings/types/user-settings';
+import { useInterop } from '@/modules/shell/app/use-electron-interop';
 import { useMonitorService } from '@/modules/shell/app/use-monitor-service';
 
 interface UseLoginReturn {
@@ -46,6 +47,7 @@ export function useLogin(): UseLoginReturn {
   const { checkIfLogged, colibriLogin, createAccount: callCreatAccount, login: callLogin } = useUsersApi();
   const { getRawSettings, setSettings } = useSettingsApi();
   const { getExchanges } = useExchangeApi();
+  const { getPassword } = useInterop();
 
   api.setOnAuthFailure(() => {
     set(logged, false);
@@ -105,7 +107,10 @@ export function useLogin(): UseLoginReturn {
         username: payload.credentials.username,
       };
       const response = await unlock(data);
-      await colibriLogin(objectPick(payload.credentials, ['username', 'password']));
+      // Colibri login is best-effort - don't fail account creation if Colibri isn't ready
+      colibriLogin(objectPick(payload.credentials, ['username', 'password'])).catch((error) => {
+        logger.debug('Colibri login failed (service may still be starting):', error);
+      });
       return response;
     }
 
@@ -143,6 +148,16 @@ export function useLogin(): UseLoginReturn {
         rawSettings.frontendSettings = await migrateAndSaveSettings(rawSettings.frontendSettings);
         exchanges = activeExchanges;
         settings = UserSettingsModel.parse(rawSettings);
+
+        // Ensure Colibri is also logged in (it may have restarted)
+        // Try provided password first, then fall back to stored password from keychain
+        // This is best-effort - don't fail if Colibri says "DB already unlocked"
+        const passwordForColibri = credentials.password || await getPassword(username);
+        if (passwordForColibri) {
+          colibriLogin({ username, password: passwordForColibri }).catch((error) => {
+            logger.debug('Colibri login failed (may already be unlocked):', error);
+          });
+        }
       }
       else {
         if (!credentials.username)
@@ -165,7 +180,10 @@ export function useLogin(): UseLoginReturn {
           return { message: '', success: false };
         }
 
-        await colibriLogin(objectPick(credentials, ['username', 'password']));
+        // Colibri login is best-effort - don't fail login if Colibri isn't ready
+        colibriLogin(objectPick(credentials, ['username', 'password'])).catch((error) => {
+          logger.debug('Colibri login failed (service may still be starting):', error);
+        });
 
         outcome.result.settings.frontendSettings = await migrateAndSaveSettings(outcome.result.settings.frontendSettings);
 

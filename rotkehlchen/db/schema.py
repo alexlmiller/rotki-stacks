@@ -122,6 +122,8 @@ INSERT OR IGNORE INTO location(location, seq) VALUES ('y', 57);
 INSERT OR IGNORE INTO location(location, seq) VALUES ('z', 58);
 /* Gate */
 INSERT OR IGNORE INTO location(location, seq) VALUES ('{', 59);
+/* Stacks */
+INSERT OR IGNORE INTO location(location, seq) VALUES ('|', 60);
 """
 
 # Custom enum table for Balance categories (asset/liability)
@@ -894,6 +896,58 @@ CREATE TABLE IF NOT EXISTS solana_ata_address_mappings (
 );
 """  # noqa: E501
 
+# Stacks blockchain transaction tables
+DB_CREATE_STACKS_TRANSACTIONS = """
+CREATE TABLE IF NOT EXISTS stacks_transactions (
+    identifier INTEGER PRIMARY KEY NOT NULL,
+    tx_id TEXT NOT NULL UNIQUE,
+    block_height INTEGER NOT NULL,
+    block_time INTEGER NOT NULL,
+    tx_type TEXT NOT NULL,
+    sender_address TEXT NOT NULL,
+    fee_rate TEXT NOT NULL,
+    nonce INTEGER NOT NULL,
+    tx_status TEXT NOT NULL,
+    recipient_address TEXT,
+    amount TEXT,
+    contract_id TEXT,
+    function_name TEXT,
+    function_args TEXT,
+    arg_amount_ustx TEXT,
+    arg_recipient TEXT,
+    arg_delegate_to TEXT
+);
+"""
+
+DB_CREATE_STACKS_TRANSACTIONS_INDEXES = """
+CREATE INDEX IF NOT EXISTS idx_stacks_tx_contract_function
+    ON stacks_transactions(contract_id, function_name);
+CREATE INDEX IF NOT EXISTS idx_stacks_tx_arg_amount
+    ON stacks_transactions(arg_amount_ustx) WHERE arg_amount_ustx IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_stacks_tx_arg_recipient
+    ON stacks_transactions(arg_recipient) WHERE arg_recipient IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_stacks_tx_arg_delegate
+    ON stacks_transactions(arg_delegate_to) WHERE arg_delegate_to IS NOT NULL;
+"""
+
+DB_CREATE_STACKS_ADDRESS_MAPPINGS = """
+CREATE TABLE IF NOT EXISTS stackstx_address_mappings (
+    tx_id INTEGER NOT NULL,
+    address TEXT NOT NULL,
+    PRIMARY KEY(tx_id, address),
+    FOREIGN KEY(tx_id) REFERENCES stacks_transactions(identifier) ON DELETE CASCADE ON UPDATE CASCADE
+);
+"""  # noqa: E501
+
+DB_CREATE_STACKS_TX_MAPPINGS = """
+CREATE TABLE IF NOT EXISTS stacks_tx_mappings (
+    tx_id INTEGER NOT NULL,
+    value INTEGER NOT NULL,
+    FOREIGN KEY(tx_id) references stacks_transactions(identifier) ON UPDATE CASCADE ON DELETE CASCADE,
+    PRIMARY KEY (tx_id, value)
+);
+"""  # noqa: E501
+
 # Lido CSM tracking tables. All columns are consumed by DBLidoCsm for enforcing the
 # FK to tracked Ethereum accounts and persisting cached metrics snapshots.
 DB_CREATE_LIDO_CSM_NODE_OPERATORS = """
@@ -1105,6 +1159,9 @@ BEGIN TRANSACTION;
 {DB_CREATE_SOLANA_ADDRESS_MAPPINGS}
 {DB_CREATE_SOLANA_TX_MAPPINGS}
 {DB_CREATE_SOLANA_ATA_ADDRESS_MAPPINGS}
+{DB_CREATE_STACKS_TRANSACTIONS}
+{DB_CREATE_STACKS_ADDRESS_MAPPINGS}
+{DB_CREATE_STACKS_TX_MAPPINGS}
 {DB_CREATE_LIDO_CSM_NODE_OPERATORS}
 {DB_CREATE_LIDO_CSM_NODE_OPERATOR_METRICS}
 {DB_CREATE_HISTORICAL_BALANCE_CACHE}

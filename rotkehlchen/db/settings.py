@@ -45,7 +45,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 log = RotkehlchenLogsAdapter(logger)
 
-ROTKEHLCHEN_DB_VERSION: Final = 53
+ROTKEHLCHEN_DB_VERSION: Final = 54
 ROTKEHLCHEN_TRANSIENT_DB_VERSION: Final = 2
 DEFAULT_TAXFREE_AFTER_PERIOD: Final = YEAR_IN_SECONDS
 DEFAULT_INCLUDE_CRYPTO2CRYPTO: Final = True
@@ -151,6 +151,7 @@ STRING_KEYS: Final = (
     'dot_rpc_endpoint',
     'beacon_rpc_endpoint',
     'btc_mempool_api',
+    'stacks_hiro_api_url',
     'date_display_format',
     'frontend_settings',
     'csv_export_delimiter',
@@ -184,6 +185,7 @@ CachedDBSettingsFieldNames = Literal[
     'dot_rpc_endpoint',
     'beacon_rpc_endpoint',
     'btc_mempool_api',
+    'stacks_hiro_api_url',
     'main_currency',
     'date_display_format',
     'submit_usage_analytics',
@@ -261,6 +263,7 @@ class DBSettings:
     dot_rpc_endpoint: str = ''
     beacon_rpc_endpoint: str = DEFAULT_BEACON_RPC
     btc_mempool_api: str = ''
+    stacks_hiro_api_url: str = ''
     main_currency: Asset = DEFAULT_MAIN_CURRENCY
     date_display_format: str = DEFAULT_DATE_DISPLAY_FORMAT
     submit_usage_analytics: bool = DEFAULT_SUBMIT_USAGE_ANALYTICS
@@ -379,6 +382,8 @@ class ModifiableDBSettings(NamedTuple):
     auto_detect_tokens: bool | None = None
     csv_export_delimiter: str | None = None
     btc_mempool_api: str | None = None
+    stacks_hiro_api_url: str | None = None
+    events_processing_frequency: int | None = None
     asset_movement_amount_tolerance: FVal | None = None
     asset_movement_time_range: int | None = None
     suppress_missing_key_msg_services: list[ExternalService] | None = None

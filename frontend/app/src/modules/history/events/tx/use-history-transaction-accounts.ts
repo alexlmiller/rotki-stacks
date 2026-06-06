@@ -11,12 +11,13 @@ interface UseHistoryTransactionAccountsReturn {
   getEvmAccounts: (chains?: string[]) => ChainAddress[];
   getEvmLikeAccounts: (chains?: string[]) => ChainAddress[];
   getSolanaAccounts: (chains?: string[]) => ChainAddress[];
+  getStacksAccounts: (chains?: string[]) => ChainAddress[];
   getTransactionTypeFromChain: (chain: string) => TransactionChainType;
 }
 
 export function useHistoryTransactionAccounts(): UseHistoryTransactionAccountsReturn {
   const { addresses } = useAccountAddresses();
-  const { isBtcChains, isEvmLikeChains, isSolanaChains, supportsTransactions } = useSupportedChains();
+  const { isBtcChains, isEvmLikeChains, isSolanaChains, isStacksChains, supportsTransactions } = useSupportedChains();
   const { disabledChainQueries } = storeToRefs(useGeneralSettingsStore());
 
   const getAccountsByChainType = (
@@ -44,11 +45,15 @@ export function useHistoryTransactionAccounts(): UseHistoryTransactionAccountsRe
   const getSolanaAccounts = (chains: string[] = []): ChainAddress[] =>
     getAccountsByChainType(isSolanaChains, chains);
 
+  const getStacksAccounts = (chains: string[] = []): ChainAddress[] =>
+    getAccountsByChainType(isStacksChains, chains);
+
   const getAllAccounts = (chains: string[] = []): ChainAddress[] => [
     ...getEvmAccounts(chains),
     ...getEvmLikeAccounts(chains),
     ...getBitcoinAccounts(chains),
     ...getSolanaAccounts(chains),
+    ...getStacksAccounts(chains),
   ];
 
   const filterDisabledChainAccounts = (accounts: ChainAddress[]): ChainAddress[] => {
@@ -71,6 +76,8 @@ export function useHistoryTransactionAccounts(): UseHistoryTransactionAccountsRe
       return TransactionChainType.BITCOIN;
     if (isSolanaChains(chain))
       return TransactionChainType.SOLANA;
+    if (isStacksChains(chain))
+      return TransactionChainType.STACKS;
 
     return TransactionChainType.EVM;
   };
@@ -82,6 +89,7 @@ export function useHistoryTransactionAccounts(): UseHistoryTransactionAccountsRe
     getEvmAccounts,
     getEvmLikeAccounts,
     getSolanaAccounts,
+    getStacksAccounts,
     getTransactionTypeFromChain,
   };
 }

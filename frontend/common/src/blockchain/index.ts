@@ -6,6 +6,7 @@ export enum Blockchain {
   KSM = 'ksm',
   DOT = 'dot',
   SOLANA = 'solana',
+  STACKS = 'stx',
   BSC = 'binance_sc',
   AVAX = 'avax',
   OPTIMISM = 'optimism',
