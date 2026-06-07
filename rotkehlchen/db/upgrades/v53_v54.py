@@ -84,7 +84,7 @@ def upgrade_v53_to_v54(db: 'DBHandler', progress_handler: 'DBUpgradeProgressHand
             )
             moved_rows += write_cursor.rowcount
 
-        log.info(f'Moved {moved_rows} old fork Stacks location rows to the new slot')
+        log.info('Moved %s old fork Stacks location rows to the new slot', moved_rows)
 
     @progress_step(description='Adding new chain locations to the DB.')
     def _add_chain_locations(write_cursor: 'DBCursor') -> None:

@@ -1438,12 +1438,13 @@ class StacksEventFilterQuery(HistoryEventWithCounterpartyFilterQuery):
             location: Location | None = None,
             location_labels: list[str] | None = None,
             excluded_locations: list[Location] | None = None,
-            ignored_ids: list[str] | None = None,
+            ignored_ids: list[int] | None = None,
             null_columns: list[str] | None = None,
             identifiers: list[int] | None = None,
             group_identifiers: list[str] | None = None,
             entry_types: IncludeExcludeFilterData | None = None,
             exclude_ignored_assets: bool = False,
+            state_markers: list[HistoryMappingState] | None = None,
             customized_events_only: bool = False,
             notes_substring: str | None = None,
             tx_ids: list[str] | None = None,
@@ -1454,6 +1455,8 @@ class StacksEventFilterQuery(HistoryEventWithCounterpartyFilterQuery):
             entry_types = IncludeExcludeFilterData(values=[
                 HistoryBaseEntryType.STACKS_EVENT,
             ])
+        if customized_events_only is True:
+            state_markers = [HistoryMappingState.CUSTOMIZED]
 
         filter_query = super().make(
             and_op=and_op,
@@ -1476,7 +1479,7 @@ class StacksEventFilterQuery(HistoryEventWithCounterpartyFilterQuery):
             group_identifiers=group_identifiers,
             entry_types=entry_types,
             exclude_ignored_assets=exclude_ignored_assets,
-            customized_events_only=customized_events_only,
+            state_markers=state_markers,
             notes_substring=notes_substring,
             counterparties=counterparties,
         )

@@ -149,7 +149,7 @@ class IconManager:
                     shutil.copy2(icon_path, target_path)
                     deployed_count += 1
                     log.debug(f'Deployed packaged icon: {icon_name} -> {target_path}')
-                except (OSError, IOError) as e:
+                except OSError as e:
                     log.warning(f'Failed to deploy packaged icon {icon_name}: {e}')
 
         if deployed_count > 0:

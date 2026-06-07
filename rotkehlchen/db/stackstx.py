@@ -98,8 +98,8 @@ class DBStacksTx(DBCommonTx[StacksAddress, StacksTransaction, str, StacksTransac
             write_cursor: 'DBCursor',
             stacks_transactions: list[StacksTransaction],
             relevant_address: StacksAddress | None,
-    ) -> None:
-        """Add Stacks transactions to the database."""
+    ) -> list[str]:
+        """Add Stacks transactions to the database. Returns newly-inserted tx ids."""
         query = """
             INSERT OR IGNORE INTO stacks_transactions(
                 tx_id, block_height, block_time, tx_type, sender_address,
@@ -108,11 +108,12 @@ class DBStacksTx(DBCommonTx[StacksAddress, StacksTransaction, str, StacksTransac
                 arg_amount_ustx, arg_recipient, arg_delegate_to
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
+        newly_inserted: list[str] = []
         for tx in stacks_transactions:
             # Extract indexed argument values
             indexed = self._extract_indexed_args(tx)
 
-            tx_id, _ = self.db.write_single_tuple(
+            tx_id, is_new = self.db.write_single_tuple(
                 write_cursor=write_cursor,
                 tuple_type='stacks_transaction',
                 query=query,
@@ -136,6 +137,8 @@ class DBStacksTx(DBCommonTx[StacksAddress, StacksTransaction, str, StacksTransac
                 ),
                 relevant_address=relevant_address,
             )
+            if is_new:
+                newly_inserted.append(tx.tx_id)
             if tx_id is None:
                 continue
 
@@ -151,6 +154,8 @@ class DBStacksTx(DBCommonTx[StacksAddress, StacksTransaction, str, StacksTransac
                     'VALUES (?, ?)',
                     (tx_id, tx.recipient_address),
                 )
+
+        return newly_inserted
 
     def get_transactions(
             self,
